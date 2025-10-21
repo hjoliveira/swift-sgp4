@@ -7,9 +7,7 @@
 //
 
 import XCTest
-
-@testable
-import SwiftSGP4
+@testable import SwiftSGP4
 
 class SwiftSGP4Tests: XCTestCase {
     
@@ -22,8 +20,8 @@ class SwiftSGP4Tests: XCTestCase {
     }
     
     func testParseTLEFromFile() {
-        if let path = NSBundle(forClass: self.classForCoder).pathForResource("tle", ofType: "txt") {
-            
+        if let path = Bundle(for: type(of: self)).path(forResource: "tle", ofType: "txt") {
+
             do {
                 let tle = try TLE(name: "SENTINEL-1A", tleFilename: path)
                 checkTLE(tle)
@@ -49,11 +47,14 @@ class SwiftSGP4Tests: XCTestCase {
         
     }
     
-    func checkTLE(tle: TLE) {
-        let cal = NSCalendar.currentCalendar()
-        let year = cal.components(NSCalendarUnit.Year, fromDate: tle.epoch).year
-        let day = cal.ordinalityOfUnit(NSCalendarUnit.Day, inUnit: NSCalendarUnit.Year, forDate: tle.epoch)
-        
+    func checkTLE(_ tle: TLE) {
+        let cal = Calendar.current
+        let year = cal.component(.year, from: tle.epoch)
+        guard let day = cal.ordinality(of: .day, in: .year, for: tle.epoch) else {
+            XCTFail("Could not determine day ordinality from epoch date")
+            return
+        }
+
         XCTAssertEqual(tle.name, "SENTINEL-1A")
         XCTAssertEqual(tle.noradNumber, 39634)
         XCTAssertEqual(tle.intDesignator, "14016A")
@@ -61,7 +62,7 @@ class SwiftSGP4Tests: XCTestCase {
         XCTAssertEqual(day, 164)
         XCTAssertEqual(tle.meanMotionDt2, -0.00000008)
         XCTAssertEqual(tle.meanMotionDdt6, 00000E-0)
-        XCTAssertEqualWithAccuracy(tle.bstar, 0.81062, accuracy: 0.00001)
+        XCTAssertEqual(tle.bstar, 0.81062, accuracy: 0.00001)
         XCTAssertEqual(tle.inclination, 98.1805)
         XCTAssertEqual(tle.rightAscendingNode, 171.2383)
         XCTAssertEqual(tle.eccentricity, 0001291)

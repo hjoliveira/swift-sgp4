@@ -8,8 +8,8 @@
 
 import Foundation
 
-enum TLEError: ErrorType {
-    case InvalidLineLength(Int)
-    case InvalidElement(String)
-    case FileParsing
+enum TLEError: Error {
+    case invalidLineLength(Int)
+    case invalidElement(String)
+    case fileParsing
 }
