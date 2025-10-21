@@ -27,18 +27,10 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SwiftSGP4",
-            path: "SwiftSGP4",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-                .enableUpcomingFeature("ExistentialAny"),
-            ]),
+            path: "SwiftSGP4"),
         .testTarget(
             name: "SwiftSGP4Tests",
             dependencies: ["SwiftSGP4"],
-            path: "SwiftSGP4Tests",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-                .enableUpcomingFeature("ExistentialAny"),
-            ]),
+            path: "SwiftSGP4Tests"),
     ]
 )

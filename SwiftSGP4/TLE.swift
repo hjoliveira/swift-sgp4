@@ -102,25 +102,46 @@ public struct TLE {
 
             return trimmedSubstring
         }
+
+        // Helper function to parse TLE floating point format (e.g., "81062-5" or "00000-0")
+        // This mimics NSString.doubleValue behavior which parses leading numeric characters
+        func parseDouble(_ str: String) -> Double {
+            // Trim whitespace
+            let trimmed = str.trimmingCharacters(in: .whitespaces)
+            // Extract the numeric prefix (including sign and decimal point)
+            var numericPart = ""
+            for (index, char) in trimmed.enumerated() {
+                if char.isNumber || char == "." {
+                    numericPart.append(char)
+                } else if (char == "-" || char == "+") && index == 0 {
+                    // Only accept sign at the beginning
+                    numericPart.append(char)
+                } else {
+                    // Stop at first non-numeric character (including signs in the middle)
+                    break
+                }
+            }
+            return Double(numericPart) ?? 0.0
+        }
         
-        if !isValidLineLength(lineOne) {
+        if !isValidLineLength(line: lineOne) {
             throw TLEError.invalidLineLength(1)
         }
 
-        if !isValidLineLength(lineTwo) {
+        if !isValidLineLength(line: lineTwo) {
             throw TLEError.invalidLineLength(2)
         }
 
-        if trimmedSubstring(lineOne, location: 0, length: 1) != "1" {
+        if trimmedSubstring(str: lineOne, location: 0, length: 1) != "1" {
             throw TLEError.invalidElement("Invalid first character for line 1")
         }
 
-        if trimmedSubstring(lineTwo, location: 0, length: 1) != "2" {
+        if trimmedSubstring(str: lineTwo, location: 0, length: 1) != "2" {
             throw TLEError.invalidElement("Invalid first character for line 2")
         }
 
-        let satNumber1 = trimmedSubstring(lineOne, location: TLE1_COL_NORADNUM, length: TLE1_LEN_NORADNUM)
-        let satNumber2 = trimmedSubstring(lineTwo, location: TLE2_COL_NORADNUM, length: TLE2_LEN_NORADNUM)
+        let satNumber1 = trimmedSubstring(str: lineOne, location: TLE1_COL_NORADNUM, length: TLE1_LEN_NORADNUM)
+        let satNumber2 = trimmedSubstring(str: lineTwo, location: TLE2_COL_NORADNUM, length: TLE2_LEN_NORADNUM)
 
         if satNumber1 != satNumber2 {
             throw TLEError.invalidElement("Satellite id not the same for both lines")
@@ -135,42 +156,42 @@ public struct TLE {
         self.name = name
         
         // line 1
-        self.intDesignator = trimmedSubstring(lineOne, location: TLE1_COL_INTLDESC_A, length: TLE1_LEN_INTLDESC_A + TLE1_LEN_INTLDESC_B + TLE1_LEN_INTLDESC_C)
+        self.intDesignator = trimmedSubstring(str: lineOne, location: TLE1_COL_INTLDESC_A, length: TLE1_LEN_INTLDESC_A + TLE1_LEN_INTLDESC_B + TLE1_LEN_INTLDESC_C)
 
-        guard var year = Int(trimmedSubstring(lineOne, location: TLE1_COL_EPOCH_A, length: TLE1_LEN_EPOCH_A)) else {
+        guard var year = Int(trimmedSubstring(str: lineOne, location: TLE1_COL_EPOCH_A, length: TLE1_LEN_EPOCH_A)) else {
             throw TLEError.invalidElement("Invalid year")
         }
 
-        guard let doubleDay = Double(trimmedSubstring(lineOne, location: TLE1_COL_EPOCH_B, length: TLE1_LEN_EPOCH_B)) else {
+        guard let doubleDay = Double(trimmedSubstring(str: lineOne, location: TLE1_COL_EPOCH_B, length: TLE1_LEN_EPOCH_B)) else {
             throw TLEError.invalidElement("Invalid day")
         }
-        
+
         let day = Int(doubleDay)
 
-        if let meanMotionDt2 = Double(trimmedSubstring(lineOne, location: TLE1_COL_MEANMOTIONDT2, length: TLE1_LEN_MEANMOTIONDT2)) {
+        if let meanMotionDt2 = Double(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDT2, length: TLE1_LEN_MEANMOTIONDT2)) {
             self.meanMotionDt2 = meanMotionDt2
         } else {
             throw TLEError.invalidElement("Invalid meanMotionDt2")
         }
 
-        self.meanMotionDdt6 = (Double(trimmedSubstring(lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6)) ?? 0.0) * 1E-05
+        self.meanMotionDdt6 = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6)) * 1E-05
 
-        self.bstar = (Double(trimmedSubstring(lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR)) ?? 0.0) * 1E-05
+        self.bstar = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR)) * 1E-05
 
         // line 2
-        self.inclination = Double(trimmedSubstring(lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION)) ?? 0.0
+        self.inclination = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION))
 
-        self.rightAscendingNode = Double(trimmedSubstring(lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE)) ?? 0.0
+        self.rightAscendingNode = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE))
 
-        self.eccentricity = Double(trimmedSubstring(lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY)) ?? 0.0
+        self.eccentricity = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY))
 
-        self.argumentPerigee = Double(trimmedSubstring(lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE)) ?? 0.0
+        self.argumentPerigee = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE))
 
-        self.meanAnomaly = Double(trimmedSubstring(lineTwo, location: TLE2_COL_MEANANOMALY, length: TLE2_LEN_MEANANOMALY)) ?? 0.0
+        self.meanAnomaly = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_MEANANOMALY, length: TLE2_LEN_MEANANOMALY))
 
-        self.meanMotion = Double(trimmedSubstring(lineTwo, location: TLE2_COL_MEANMOTION, length: TLE2_LEN_MEANMOTION)) ?? 0.0
+        self.meanMotion = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_MEANMOTION, length: TLE2_LEN_MEANMOTION))
 
-        if let orbitNumber = Int(trimmedSubstring(lineTwo, location: TLE2_COL_REVATEPOCH, length: TLE2_LEN_REVATEPOCH)) {
+        if let orbitNumber = Int(trimmedSubstring(str: lineTwo, location: TLE2_COL_REVATEPOCH, length: TLE2_LEN_REVATEPOCH)) {
             self.orbitNumber = orbitNumber
         } else {
             throw TLEError.invalidElement("Invalid orbitNumber")
