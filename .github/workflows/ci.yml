@@ -29,15 +29,11 @@ jobs:
   test-linux:
     name: Build and Test (Linux)
     runs-on: ubuntu-latest
+    container: swift:6.0
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '6.0'
 
     - name: Build
       run: swift build -v
