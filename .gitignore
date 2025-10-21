@@ -31,3 +31,10 @@ DerivedData
 # Carthage/Checkouts
 
 Carthage/Build
+
+# Swift Package Manager
+#
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj
