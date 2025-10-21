@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -27,10 +27,18 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SwiftSGP4",
-            path: "SwiftSGP4"),
+            path: "SwiftSGP4",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+                .enableUpcomingFeature("ExistentialAny"),
+            ]),
         .testTarget(
             name: "SwiftSGP4Tests",
             dependencies: ["SwiftSGP4"],
-            path: "SwiftSGP4Tests"),
+            path: "SwiftSGP4Tests",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+                .enableUpcomingFeature("ExistentialAny"),
+            ]),
     ]
 )

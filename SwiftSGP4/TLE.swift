@@ -55,10 +55,10 @@ public struct TLE {
     var name: String
 //    var lineOne: String
 //    var lineTwo: String
-    
+
     var noradNumber: Int
     var intDesignator: String
-    var epoch: NSDate
+    var epoch: Date
     var meanMotionDt2: Double
     var meanMotionDdt6: Double
     var bstar: Double
@@ -71,14 +71,14 @@ public struct TLE {
     var orbitNumber: Int
     
     public init(name: String, tleFilename: String) throws {
-        let tleText = try String(contentsOfFile: tleFilename, encoding: NSUTF8StringEncoding)
-        
-        let lines = tleText.componentsSeparatedByString("\n")
-        
+        let tleText = try String(contentsOfFile: tleFilename, encoding: .utf8)
+
+        let lines = tleText.components(separatedBy: "\n")
+
         var line1: String?
         var line2: String?
-        for var i = 0; i < lines.count; ++i {
-            if lines[i].stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet()) == name {
+        for i in 0..<lines.count {
+            if lines[i].trimmingCharacters(in: .whitespacesAndNewlines) == name {
                 line1 = lines[i+1]
                 line2 = lines[i+2]
                 break
@@ -90,57 +90,59 @@ public struct TLE {
     public init(name: String, lineOne: String, lineTwo: String) throws {
         let TLE_LEN_LINE_DATA = 69
         func isValidLineLength(line: String) -> Bool {
-            let lineLength = line.characters.count
+            let lineLength = line.count
             return lineLength == TLE_LEN_LINE_DATA
         }
-        
+
         func trimmedSubstring(str: String, location: Int, length: Int) -> String {
-            let substring = (str as NSString).substringWithRange(NSRange(location: location, length: length))
-            let trimmedSubstring = substring.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())
-            
+            let start = str.index(str.startIndex, offsetBy: location)
+            let end = str.index(start, offsetBy: length)
+            let substring = String(str[start..<end])
+            let trimmedSubstring = substring.trimmingCharacters(in: .whitespacesAndNewlines)
+
             return trimmedSubstring
         }
         
         if !isValidLineLength(lineOne) {
-            throw TLEError.InvalidLineLength(1)
+            throw TLEError.invalidLineLength(1)
         }
-        
+
         if !isValidLineLength(lineTwo) {
-            throw TLEError.InvalidLineLength(2)
+            throw TLEError.invalidLineLength(2)
         }
-        
+
         if trimmedSubstring(lineOne, location: 0, length: 1) != "1" {
-            throw TLEError.InvalidElement("Invalid first character for line 1")
+            throw TLEError.invalidElement("Invalid first character for line 1")
         }
-        
+
         if trimmedSubstring(lineTwo, location: 0, length: 1) != "2" {
-            throw TLEError.InvalidElement("Invalid first character for line 2")
+            throw TLEError.invalidElement("Invalid first character for line 2")
         }
-        
+
         let satNumber1 = trimmedSubstring(lineOne, location: TLE1_COL_NORADNUM, length: TLE1_LEN_NORADNUM)
         let satNumber2 = trimmedSubstring(lineTwo, location: TLE2_COL_NORADNUM, length: TLE2_LEN_NORADNUM)
-        
+
         if satNumber1 != satNumber2 {
-            throw TLEError.InvalidElement("Satellite id not the same for both lines")
+            throw TLEError.invalidElement("Satellite id not the same for both lines")
         }
 
         if let noradNumber = Int(satNumber1) {
             self.noradNumber = noradNumber
         } else {
-            throw TLEError.InvalidElement("Invalid NORAD number")
+            throw TLEError.invalidElement("Invalid NORAD number")
         }
         
         self.name = name
         
         // line 1
         self.intDesignator = trimmedSubstring(lineOne, location: TLE1_COL_INTLDESC_A, length: TLE1_LEN_INTLDESC_A + TLE1_LEN_INTLDESC_B + TLE1_LEN_INTLDESC_C)
-        
+
         guard var year = Int(trimmedSubstring(lineOne, location: TLE1_COL_EPOCH_A, length: TLE1_LEN_EPOCH_A)) else {
-            throw TLEError.InvalidElement("Invalid year")
+            throw TLEError.invalidElement("Invalid year")
         }
-        
+
         guard let doubleDay = Double(trimmedSubstring(lineOne, location: TLE1_COL_EPOCH_B, length: TLE1_LEN_EPOCH_B)) else {
-            throw TLEError.InvalidElement("Invalid day")
+            throw TLEError.invalidElement("Invalid day")
         }
         
         let day = Int(doubleDay)
@@ -148,30 +150,30 @@ public struct TLE {
         if let meanMotionDt2 = Double(trimmedSubstring(lineOne, location: TLE1_COL_MEANMOTIONDT2, length: TLE1_LEN_MEANMOTIONDT2)) {
             self.meanMotionDt2 = meanMotionDt2
         } else {
-            throw TLEError.InvalidElement("Invalid meanMotionDt2")
+            throw TLEError.invalidElement("Invalid meanMotionDt2")
         }
-        
-        self.meanMotionDdt6 = (trimmedSubstring(lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6) as NSString).doubleValue * 1E-05
-        
-        self.bstar = (trimmedSubstring(lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR) as NSString).doubleValue * 1E-05
-    
+
+        self.meanMotionDdt6 = (Double(trimmedSubstring(lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6)) ?? 0.0) * 1E-05
+
+        self.bstar = (Double(trimmedSubstring(lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR)) ?? 0.0) * 1E-05
+
         // line 2
-        self.inclination = (trimmedSubstring(lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION) as NSString).doubleValue
-        
-        self.rightAscendingNode = (trimmedSubstring(lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE) as NSString).doubleValue
-        
-        self.eccentricity = (trimmedSubstring(lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY) as NSString).doubleValue
-        
-        self.argumentPerigee = (trimmedSubstring(lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE) as NSString).doubleValue
-        
-        self.meanAnomaly = (trimmedSubstring(lineTwo, location: TLE2_COL_MEANANOMALY, length: TLE2_LEN_MEANANOMALY) as NSString).doubleValue
-        
-        self.meanMotion = (trimmedSubstring(lineTwo, location: TLE2_COL_MEANMOTION, length: TLE2_LEN_MEANMOTION) as NSString).doubleValue
-        
+        self.inclination = Double(trimmedSubstring(lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION)) ?? 0.0
+
+        self.rightAscendingNode = Double(trimmedSubstring(lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE)) ?? 0.0
+
+        self.eccentricity = Double(trimmedSubstring(lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY)) ?? 0.0
+
+        self.argumentPerigee = Double(trimmedSubstring(lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE)) ?? 0.0
+
+        self.meanAnomaly = Double(trimmedSubstring(lineTwo, location: TLE2_COL_MEANANOMALY, length: TLE2_LEN_MEANANOMALY)) ?? 0.0
+
+        self.meanMotion = Double(trimmedSubstring(lineTwo, location: TLE2_COL_MEANMOTION, length: TLE2_LEN_MEANMOTION)) ?? 0.0
+
         if let orbitNumber = Int(trimmedSubstring(lineTwo, location: TLE2_COL_REVATEPOCH, length: TLE2_LEN_REVATEPOCH)) {
             self.orbitNumber = orbitNumber
         } else {
-            throw TLEError.InvalidElement("Invalid orbitNumber")
+            throw TLEError.invalidElement("Invalid orbitNumber")
         }
         
         if year < 57 {
@@ -179,15 +181,15 @@ public struct TLE {
         } else {
             year += 1900
         }
-        
-        let comps = NSDateComponents()
+
+        var comps = DateComponents()
         comps.year = year
         comps.day = day
-        
-        if let epoch = NSCalendar.currentCalendar().dateFromComponents(comps) {
+
+        if let epoch = Calendar.current.date(from: comps) {
             self.epoch = epoch
         } else {
-            throw TLEError.InvalidElement("Invalid epoch")
+            throw TLEError.invalidElement("Invalid epoch")
         }
     }
 }
