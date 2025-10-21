@@ -191,17 +191,18 @@ class TLEValidationTests: XCTestCase {
 
     func testTLE_BstarScientificNotation() throws {
         // Test various BSTAR formats
+        // Note: BSTAR field is 8 characters (columns 53-60)
         let testCases: [(String, Double)] = [
-            ("81062-5", 0.81062E-5),   // Positive exponent notation
-            ("-11606-4", -0.11606E-4), // Negative mantissa
-            ("00000-0", 0.0),          // Zero value
-            ("12345-2", 0.12345E-2)    // Standard notation
+            (" 81062-5", 0.81062E-5),   // Positive exponent notation (space-padded)
+            ("-11606-4", -0.11606E-4),  // Negative mantissa
+            (" 00000-0", 0.0),          // Zero value (space-padded)
+            (" 12345-2", 0.12345E-2)    // Standard notation (space-padded)
         ]
 
         for (bstarString, expectedValue) in testCases {
             let tle = try TLE(
                 name: "TEST",
-                lineOne: "1 99999U 24001A   24100.12345678  .00000100  00000-0  \(bstarString) 0  9999",
+                lineOne: "1 99999U 24001A   24100.12345678  .00000100  00000-0 \(bstarString) 0  9999",
                 lineTwo: "2 99999  45.0000 180.0000 0100000 000.0000 000.0000 15.00000000000001"
             )
 

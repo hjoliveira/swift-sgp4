@@ -123,6 +123,69 @@ public struct TLE {
             }
             return Double(numericPart) ?? 0.0
         }
+
+        // Helper function to parse TLE scientific notation (e.g., "81062-5" = 0.81062E-5)
+        // Format: [sign]ddddd[sign]d where decimal point is IMPLIED before first digit
+        func parseScientificNotation(_ str: String) -> Double {
+            let trimmed = str.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                return 0.0
+            }
+
+            // Find the position of the exponent sign (last + or - in string)
+            var expSignPos = -1
+            for (index, char) in trimmed.enumerated() {
+                if (char == "-" || char == "+") && index > 0 {
+                    expSignPos = index
+                }
+            }
+
+            if expSignPos == -1 {
+                // No exponent, just parse as regular number
+                return parseDouble(trimmed)
+            }
+
+            // Split into mantissa and exponent parts
+            let mantissaStr = String(trimmed.prefix(expSignPos))
+            let exponentStr = String(trimmed.suffix(from: trimmed.index(trimmed.startIndex, offsetBy: expSignPos)))
+
+            // Parse mantissa (assume decimal point before first digit)
+            var mantissa = 0.0
+            var isNegative = false
+            var digits = ""
+
+            for char in mantissaStr {
+                if char == "-" {
+                    isNegative = true
+                } else if char == "+" {
+                    isNegative = false
+                } else if char.isNumber {
+                    digits.append(char)
+                } else if char == " " {
+                    continue
+                } else if char == "." {
+                    // Explicit decimal point - use as-is
+                    return parseDouble(trimmed)
+                }
+            }
+
+            if !digits.isEmpty {
+                if let value = Double(digits) {
+                    // Assume decimal point before first digit: "81062" -> 0.81062
+                    let divisor = pow(10.0, Double(digits.count))
+                    mantissa = value / divisor
+                    if isNegative {
+                        mantissa = -mantissa
+                    }
+                }
+            }
+
+            // Parse exponent
+            let exponent = Double(exponentStr) ?? 0.0
+
+            // Combine: mantissa × 10^exponent
+            return mantissa * pow(10.0, exponent)
+        }
         
         if !isValidLineLength(line: lineOne) {
             throw TLEError.invalidLineLength(1)
@@ -174,9 +237,9 @@ public struct TLE {
             throw TLEError.invalidElement("Invalid meanMotionDt2")
         }
 
-        self.meanMotionDdt6 = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6)) * 1E-05
+        self.meanMotionDdt6 = parseScientificNotation(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6))
 
-        self.bstar = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR)) * 1E-05
+        self.bstar = parseScientificNotation(trimmedSubstring(str: lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR))
 
         // line 2
         self.inclination = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION))
