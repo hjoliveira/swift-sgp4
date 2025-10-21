@@ -50,7 +50,10 @@ class SwiftSGP4Tests: XCTestCase {
     func checkTLE(_ tle: TLE) {
         let cal = Calendar.current
         let year = cal.component(.year, from: tle.epoch)
-        let day = cal.ordinality(of: .day, in: .year, for: tle.epoch)
+        guard let day = cal.ordinality(of: .day, in: .year, for: tle.epoch) else {
+            XCTFail("Could not determine day ordinality from epoch date")
+            return
+        }
 
         XCTAssertEqual(tle.name, "SENTINEL-1A")
         XCTAssertEqual(tle.noradNumber, 39634)
