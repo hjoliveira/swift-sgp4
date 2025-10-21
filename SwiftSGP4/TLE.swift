@@ -52,23 +52,23 @@ public struct TLE {
     let TLE2_COL_REVATEPOCH = 64
     let TLE2_LEN_REVATEPOCH = 5
     
-    var name: String
+    public var name: String
 //    var lineOne: String
 //    var lineTwo: String
 
-    var noradNumber: Int
-    var intDesignator: String
-    var epoch: Date
-    var meanMotionDt2: Double
-    var meanMotionDdt6: Double
-    var bstar: Double
-    var inclination: Double
-    var rightAscendingNode: Double
-    var eccentricity: Double
-    var argumentPerigee: Double
-    var meanAnomaly: Double
-    var meanMotion: Double
-    var orbitNumber: Int
+    public var noradNumber: Int
+    public var intDesignator: String
+    public var epoch: Date
+    public var meanMotionDt2: Double
+    public var meanMotionDdt6: Double
+    public var bstar: Double
+    public var inclination: Double
+    public var rightAscendingNode: Double
+    public var eccentricity: Double
+    public var argumentPerigee: Double
+    public var meanAnomaly: Double
+    public var meanMotion: Double
+    public var orbitNumber: Int
     
     public init(name: String, tleFilename: String) throws {
         let tleText = try String(contentsOfFile: tleFilename, encoding: .utf8)
@@ -183,7 +183,8 @@ public struct TLE {
 
         self.rightAscendingNode = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE))
 
-        self.eccentricity = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY))
+        // Eccentricity is stored without decimal point: "0006703" = 0.0006703
+        self.eccentricity = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY)) / 10_000_000.0
 
         self.argumentPerigee = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE))
 

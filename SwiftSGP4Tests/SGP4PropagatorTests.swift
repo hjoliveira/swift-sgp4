@@ -24,12 +24,6 @@ class SGP4PropagatorTests: XCTestCase {
         let velocity: Vector3D  // km/s (TEME frame)
     }
 
-    struct Vector3D {
-        let x: Double
-        let y: Double
-        let z: Double
-    }
-
     // MARK: - Satellite 00005 Tests (TEME Example - Highly Elliptical Orbit)
 
     /// Test satellite 00005 (58002B)
