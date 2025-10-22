@@ -30,8 +30,6 @@ class SGP4PropagatorTests: XCTestCase {
     /// Orbit characteristics: Highly elliptical (e=0.1859667), 10.82 revs/day
     /// Test range: 0 to 4320 minutes at 360-minute intervals
     func testSatellite00005_Propagation() throws {
-        throw XCTSkip("SGP4 propagation not yet implemented - Phase 3")
-
         // Official TLE from SGP4-VER.TLE
         let tle = try TLE(
             name: "00005",
@@ -39,7 +37,7 @@ class SGP4PropagatorTests: XCTestCase {
             lineTwo: "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         // Expected states from Vallado's verification output (Appendix E)
         // Note: Full test suite includes values at 0, 360, 720, 1080, 1440 minutes
@@ -73,8 +71,6 @@ class SGP4PropagatorTests: XCTestCase {
     /// Orbit characteristics: Near-earth with normal drag, perigee=377.26km
     /// Test range: 0 to 2880 minutes at 120-minute intervals
     func testSatellite06251_Propagation() throws {
-        throw XCTSkip("SGP4 propagation not yet implemented - Phase 3")
-
         // Official TLE from SGP4-VER.TLE
         let tle = try TLE(
             name: "06251",
@@ -82,7 +78,7 @@ class SGP4PropagatorTests: XCTestCase {
             lineTwo: "2 06251  58.0579  54.0425 0030035 139.1568 221.1854 15.56387291  6774"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         // Expected states from Vallado's verification output
         let expectedStates: [ExpectedState] = [
@@ -108,7 +104,7 @@ class SGP4PropagatorTests: XCTestCase {
     /// Test satellite 28057 (04632A - MOLNIYA 2-14)
     /// Orbit characteristics: Deep space, 12-hour resonant, e=0.7
     func testSatellite28057_DeepSpace() throws {
-        throw XCTSkip("SDP4 deep-space propagation not yet implemented - Phase 3")
+        throw XCTSkip("SDP4 deep-space propagation not yet implemented - will be Phase 6")
 
         // Official TLE from SGP4-VER.TLE
         let tle = try TLE(
@@ -117,7 +113,7 @@ class SGP4PropagatorTests: XCTestCase {
             lineTwo: "2 28057  63.1979 327.8107 7313992 120.6404 259.3288  2.00321811 13695"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         // Expected states for deep-space satellite
         // Note: Deep space uses SDP4 algorithms (orbital period >= 225 minutes)
@@ -137,15 +133,13 @@ class SGP4PropagatorTests: XCTestCase {
     /// Test satellite 11801 (TDRSS 3) - Non-standard TLE format
     /// This satellite omits the ephemeris type integer in the TLE
     func testSatellite11801_NonStandardFormat() throws {
-        throw XCTSkip("SGP4 propagation not yet implemented - Phase 3")
-
         let tle = try TLE(
             name: "11801",
             lineOne: "1 11801U 80027A   06176.02341244 -.00000158  00000-0  10000-3 0  1019",
             lineTwo: "2 11801   0.0169 131.5757 0002301  92.0639 327.2506  1.00273847 97813"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         let expectedStates: [ExpectedState] = [
             ExpectedState(
@@ -160,8 +154,6 @@ class SGP4PropagatorTests: XCTestCase {
 
     /// Test satellite with near-circular orbit (very low eccentricity)
     func testLowEccentricityOrbit() throws {
-        throw XCTSkip("SGP4 propagation not yet implemented - Phase 3")
-
         // Satellite 14128 (EUTELSAT 1-F1/ECS1)
         let tle = try TLE(
             name: "14128",
@@ -169,7 +161,7 @@ class SGP4PropagatorTests: XCTestCase {
             lineTwo: "2 14128   0.0008 117.1750 0002258  20.0724  85.7240  1.00273786 84199"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         let expectedStates: [ExpectedState] = [
             ExpectedState(
@@ -186,15 +178,13 @@ class SGP4PropagatorTests: XCTestCase {
 
     /// Test propagation accuracy over multiple orbits
     func testLongTermPropagationAccuracy() throws {
-        throw XCTSkip("SGP4 propagation not yet implemented - Phase 3")
-
         let tle = try TLE(
             name: "06251",
             lineOne: "1 06251U 62025E   06176.82412014  .00008885  00000-0  12808-3 0  3985",
             lineTwo: "2 06251  58.0579  54.0425 0030035 139.1568 221.1854 15.56387291  6774"
         )
 
-        let propagator = SGP4Propagator(tle: tle)
+        let propagator = try SGP4Propagator(tle: tle)
 
         // Test propagation over 2 days (2880 minutes)
         // This satellite completes ~15.56 orbits per day
