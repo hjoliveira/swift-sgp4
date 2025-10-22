@@ -136,14 +136,49 @@ struct SGP4State {
 
     // MARK: - Helper Values
 
-    /// 1.5 * J2 * (earth radius / semi-major axis)²
-    let temp1: Double
+    /// con41 = 3*cos²(i) - 1
+    let con41: Double
 
-    /// temp1 * temp1
-    let temp2: Double
+    /// con42 = 1 - 5*cos²(i)
+    let con42: Double
 
-    /// temp1 * temp2
-    let temp3: Double
+    /// x1mth2 = 1 - cos²(i)
+    let x1mth2: Double
+
+    /// x7thm1 = 7*cos²(i) - 1
+    let x7thm1: Double
+
+    // MARK: - Additional Coefficients for Non-Simple Mode
+
+    /// omgcof: coefficient for argument of perigee secular correction
+    let omgcof: Double
+
+    /// xmcof: coefficient for mean anomaly secular correction
+    let xmcof: Double
+
+    /// nodecf: coefficient for node secular correction
+    let nodecf: Double
+
+    /// t2cof: coefficient for t² terms
+    let t2cof: Double
+
+    /// t3cof: coefficient for t³ terms
+    let t3cof: Double
+
+    /// t4cof: coefficient for t⁴ terms
+    let t4cof: Double
+
+    /// t5cof: coefficient for t⁵ terms
+    let t5cof: Double
+
+    /// delmo: (1 + η*cos(M₀))³ for simple mode check
+    let delmo: Double
+
+    /// sinmao: sin(M₀) for simple mode check
+    let sinmao: Double
+
+    /// Simple propagation mode flag (true if perigee < 220 km)
+    let isSimpleMode: Bool
 
     /// Initialization from TLE
     init(from tle: TLE) throws {
@@ -180,19 +215,17 @@ struct SGP4State {
         self.eta = beta
 
         // Recover original mean motion (before drag effects in TLE)
-        // This uses WGS-84 Earth radius and gravitational parameter
-        let a1 = pow(SGP4Constants.xke / meanMotionRadPerMin, 2.0/3.0)
-        let delta1 = (1.5 * SGP4Constants.j2 * (3.0 * cosInclination * cosInclination - 1.0)) /
-                     (a1 * a1 * beta * beta * beta)
-        let a0 = a1 * (1.0 - delta1 / 3.0 - delta1 * delta1 - 134.0 * delta1 * delta1 * delta1 / 81.0)
-        let delta0 = (1.5 * SGP4Constants.j2 * (3.0 * cosInclination * cosInclination - 1.0)) /
-                     (a0 * a0 * beta * beta * beta)
+        // Following Vallado's initl() function exactly
+        let ak = pow(SGP4Constants.xke / meanMotionRadPerMin, 2.0/3.0)
+        let d1 = 0.75 * SGP4Constants.j2 * (3.0 * cosInclination * cosInclination - 1.0) / (beta * beta * beta)
+        var del = d1 / (ak * ak)
+        let adel = ak * (1.0 - del * del - del * (1.0 / 3.0 + 134.0 * del * del / 81.0))
+        del = d1 / (adel * adel)
+        let n0dp = meanMotionRadPerMin / (1.0 + del)
 
         // Calculate semi-major axis in earth radii
-        // Recover original mean motion by removing J2 secular perturbations
-        let n0dp = meanMotionRadPerMin / (1.0 + delta0)
-        let a0dp = a0 * (1.0 - delta0)
-        self.semiMajorAxis = a0dp
+        let ao = pow(SGP4Constants.xke / n0dp, 2.0/3.0)
+        self.semiMajorAxis = ao
         self.originalMeanMotion = n0dp
         self.meanMotion = n0dp
 
@@ -214,14 +247,14 @@ struct SGP4State {
         // Initialize bstar
         self.bstar = tle.bstar
 
-        // Pre-compute J2 perturbation terms
-        self.temp1 = 1.5 * SGP4Constants.j2 / (semiMajorAxis * semiMajorAxis)
-        self.temp2 = temp1 * temp1
-        self.temp3 = temp1 * temp2
-
         // Calculate drag coefficients (C1-C5)
         let cosInclSq = cosInclination * cosInclination
-        let theta2 = cosInclSq
+
+        // Pre-compute helper values based on inclination
+        self.con42 = 1.0 - 5.0 * cosInclSq
+        self.con41 = 3.0 * cosInclSq - 1.0
+        self.x1mth2 = 1.0 - cosInclSq
+        self.x7thm1 = 7.0 * cosInclSq - 1.0
 
         let s = semiMajorAxis * (1.0 - eccentricity) - 1.0 + SGP4Constants.s0 / SGP4Constants.earthRadius
 
@@ -235,7 +268,7 @@ struct SGP4State {
         let coef1 = coef / pow(psisq, 3.5)
 
         self.c2 = coef1 * originalMeanMotion * (semiMajorAxis * (1.0 + 1.5 * eta2 + eeta * (4.0 + eta2)) +
-                  0.375 * SGP4Constants.j2 * tsi / psisq * (8.0 + 3.0 * eta2 * (8.0 + eta2)))
+                  0.375 * SGP4Constants.j2 * tsi / psisq * con41 * (8.0 + 3.0 * eta2 * (8.0 + eta2)))
 
         self.c1 = bstar * c2
 
@@ -244,12 +277,15 @@ struct SGP4State {
         self.c4 = 2.0 * originalMeanMotion * coef1 * semiMajorAxis * beta * beta *
                   (eta * (2.0 + 0.5 * eta2) + eccentricity * (0.5 + 2.0 * eta2) -
                    SGP4Constants.j2 * tsi / (semiMajorAxis * psisq) *
-                   (-3.0 * (1.0 - 3.0 * theta2) * (1.0 + 1.5 * eta2 - 2.0 * eeta - 0.5 * eta * eta2) +
-                    0.75 * (1.0 - theta2) * (2.0 * eta2 - eeta - eta * eta2) * cos(2.0 * argumentOfPerigee)))
+                   (-3.0 * con41 * (1.0 - 2.0 * eeta + eta2 * (1.5 - 0.5 * eeta)) +
+                    0.75 * x1mth2 * (2.0 * eta2 - eeta * (1.0 + eta2)) * cos(2.0 * argumentOfPerigee)))
 
         self.c5 = 2.0 * coef1 * semiMajorAxis * beta * beta * (1.0 + 2.75 * (eta2 + eeta) + eeta * eta2)
 
         // D2, D3, D4 coefficients
+        let rp = semiMajorAxis * (1.0 - eccentricity)  // Perigee in earth radii
+        self.isSimpleMode = rp < (220.0 / SGP4Constants.earthRadius + 1.0)
+
         if semiMajorAxis < 1.0 {
             // Low perigee case - not typical
             self.d2 = 0.0
@@ -262,19 +298,61 @@ struct SGP4State {
             self.d4 = 0.5 * temp * semiMajorAxis * tsi * (221.0 * semiMajorAxis + 31.0 * s) * c1
         }
 
-        // Secular rates
-        self.dotMeanMotion = 0.0  // Will be updated during propagation
+        // Additional coefficients for secular corrections
+        let cc3 = (eccentricity > 1.0e-4) ? -2.0 * coef * tsi * SGP4Constants.j3oj2 * originalMeanMotion * sinInclination / eccentricity : 0.0
+        self.omgcof = bstar * cc3 * cos(argumentOfPerigee)
+        self.xmcof = (eccentricity > 1.0e-4) ? -(2.0/3.0) * coef * bstar / eeta : 0.0
 
-        // Secular rate of argument of perigee
-        self.dotArgumentOfPerigee = -0.5 * temp1 * (5.0 * cosInclSq - 1.0) * originalMeanMotion / beta / beta
+        // Node coefficient
+        let pinvsq = 1.0 / (semiMajorAxis * semiMajorAxis * (1.0 - eccentricity * eccentricity))
+        let temp1Init = 1.5 * SGP4Constants.j2 * pinvsq * originalMeanMotion
+        let xhdot1 = -temp1Init * cosInclination
+        self.nodecf = 3.5 * (1.0 - eccentricity * eccentricity) * xhdot1 * c1
 
-        // Secular rate of right ascension
-        self.dotRightAscension = -temp1 * cosInclination * originalMeanMotion / beta / beta
+        // t coefficients
+        self.t2cof = 1.5 * c1
+
+        if !isSimpleMode {
+            let cc1sq = c1 * c1
+            self.t3cof = d2 + 2.0 * cc1sq
+            self.t4cof = 0.25 * (3.0 * d3 + c1 * (12.0 * d2 + 10.0 * cc1sq))
+            self.t5cof = 0.2 * (3.0 * d4 + 12.0 * c1 * d3 + 6.0 * d2 * d2 + 15.0 * cc1sq * (2.0 * d2 + cc1sq))
+        } else {
+            self.t3cof = 0.0
+            self.t4cof = 0.0
+            self.t5cof = 0.0
+        }
+
+        // Secular delmo and sinmao
+        let delmotemp = 1.0 + eta * cos(self.meanAnomaly)
+        self.delmo = delmotemp * delmotemp * delmotemp
+        self.sinmao = sin(self.meanAnomaly)
+
+        // Secular rates using temp1Init
+        let cosio4 = cosInclSq * cosInclSq
+        let rteosq = sqrt(1.0 - eccentricity * eccentricity)
+        let temp2Init = 0.5 * temp1Init * SGP4Constants.j2 * pinvsq
+        let temp3Init = -0.46875 * SGP4Constants.j4 * pinvsq * pinvsq * originalMeanMotion
+
+        self.dotMeanMotion = originalMeanMotion + 0.5 * temp1Init * rteosq * con41 +
+                             0.0625 * temp2Init * rteosq * (13.0 - 78.0 * cosInclSq + 137.0 * cosio4)
+
+        self.dotArgumentOfPerigee = -0.5 * temp1Init * con42 +
+                                    0.0625 * temp2Init * (7.0 - 114.0 * cosInclSq + 395.0 * cosio4) +
+                                    temp3Init * (3.0 - 36.0 * cosInclSq + 49.0 * cosio4)
+
+        self.dotRightAscension = xhdot1 + (0.5 * temp2Init * (4.0 - 19.0 * cosInclSq) +
+                                           2.0 * temp3Init * (3.0 - 7.0 * cosInclSq)) * cosInclination
 
         // Additional J2 coefficients
-        self.xlcof = (eccentricity > 1.0e-4) ? 0.125 * SGP4Constants.j3 * sinInclination * (3.0 + 5.0 * cosInclination) / (1.0 + cosInclination) : 0.0
+        // Check for divide by zero with inclination = 180 deg
+        if abs(cosInclination + 1.0) > 1.5e-12 {
+            self.xlcof = -0.25 * SGP4Constants.j3oj2 * sinInclination * (3.0 + 5.0 * cosInclination) / (1.0 + cosInclination)
+        } else {
+            self.xlcof = -0.25 * SGP4Constants.j3oj2 * sinInclination * (3.0 + 5.0 * cosInclination) / 1.5e-12
+        }
 
-        self.aycof = -0.5 * SGP4Constants.j3 * sinInclination
+        self.aycof = -0.5 * SGP4Constants.j3oj2 * sinInclination
 
         // Resonance flags (for deep space)
         self.isSynchronous = false  // Will be set for 12-hour orbits in SDP4

@@ -51,6 +51,9 @@ struct SGP4Constants {
     /// J4 perturbation coefficient (fourth harmonic)
     static let j4 = -0.00000161098761
 
+    /// J3/J2 ratio
+    static let j3oj2 = j3 / j2
+
     // MARK: - Time Constants
 
     /// Minutes per day

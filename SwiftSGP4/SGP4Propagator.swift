@@ -39,33 +39,36 @@ public class SGP4Propagator {
         let tsince = minutesSinceEpoch
 
         // STEP 1: Update for secular gravity and atmospheric drag effects
-        let (xmdf, omgadf, _, _, _, _, xnode, tempa, tempe, templ) =
+        let (_, omgadf, _, _, xmp, _, xnode, tempa, tempe, templ) =
             updateSecularEffects(tsince: tsince)
 
         // STEP 2: Long period periodic terms
-        let (axn, ayn, aynl, xl) = calculateLongPeriodTerms(
-            xmdf: xmdf,
+        let (am, axnl, aynl, xl, nm, _) = calculateLongPeriodTerms(
+            xmp: xmp,
             omgadf: omgadf,
+            xnode: xnode,
             tempa: tempa,
             tempe: tempe,
             templ: templ
         )
 
         // STEP 3: Solve Kepler's equation
-        let (u, epw) = try solveKeplerEquation(axn: axn, ayn: ayn, aynl: aynl, xl: xl)
+        let (u, epw) = try solveKeplerEquation(axnl: axnl, aynl: aynl, xl: xl, xnode: xnode)
 
         // STEP 4: Short period preliminary quantities
         let (ecosE, esinE, el2, pl, r) = try calculateShortPeriodPrelims(
-            axn: axn,
-            ayn: ayn,
+            am: am,
+            axnl: axnl,
+            aynl: aynl,
             epw: epw
         )
 
         // STEP 5: Orientation vectors
-        let (rdotk, rfdotk, rk, uk, _, xinck, xnodek) = calculateOrientationVectors(
+        let (rdotk, rfdotk, rk, uk, xinck, xnodek) = calculateOrientationVectors(
             u: u,
-            axn: axn,
-            ayn: ayn,
+            am: am,
+            axnl: axnl,
+            aynl: aynl,
             ecosE: ecosE,
             esinE: esinE,
             el2: el2,
@@ -73,7 +76,7 @@ public class SGP4Propagator {
             pl: pl,
             r: r,
             xnode: xnode,
-            tsince: tsince
+            nm: nm
         )
 
         // STEP 6: Position and velocity in TEME frame
@@ -102,61 +105,92 @@ public class SGP4Propagator {
         tempe: Double, templ: Double
     ) {
         // Update for secular gravity and atmospheric drag
-        let xmdf = state.meanAnomaly + state.meanMotion * tsince
+        let xmdf = state.meanAnomaly + state.dotMeanMotion * tsince
         let omgadf = state.argumentOfPerigee + state.dotArgumentOfPerigee * tsince
         let xnoddf = state.rightAscension + state.dotRightAscension * tsince
 
-        let omega = omgadf
-        let xmp = xmdf
+        var omega = omgadf
+        var xmp = xmdf
         let tsq = tsince * tsince
-        let xnode = xnoddf
+        let xnode = xnoddf + state.nodecf * tsq
 
         // Update for drag
-        let tempa = 1.0 - state.c1 * tsince
-        let tempe = state.bstar * state.c4 * tsince
-        let templ = state.d2 * tsq
+        var tempa = 1.0 - state.c1 * tsince
+        var tempe = state.bstar * state.c4 * tsince
+        var templ = state.t2cof * tsq
 
-        return (xmdf, omgadf, xnoddf, omega, xmp, tsq, xnode, tempa, tempe, templ)
+        // Non-simple mode: additional secular corrections
+        if !state.isSimpleMode {
+            let delomg = state.omgcof * tsince
+            let delmtemp = 1.0 + state.eta * cos(xmdf)
+            let delm = state.xmcof * (delmtemp * delmtemp * delmtemp - state.delmo)
+            let temp = delomg + delm
+            xmp = xmdf + temp
+            omega = omgadf - temp
+            let t3 = tsq * tsince
+            let t4 = t3 * tsince
+            tempa = tempa - state.d2 * tsq - state.d3 * t3 - state.d4 * t4
+            tempe = tempe + state.bstar * state.c5 * (sin(xmp) - state.sinmao)
+            templ = templ + state.t3cof * t3 + t4 * (state.t4cof + tsince * state.t5cof)
+        }
+
+        return (xmdf, omega, xnoddf, omega, xmp, tsq, xnode, tempa, tempe, templ)
     }
 
     /// Calculate long period periodic terms
     private func calculateLongPeriodTerms(
-        xmdf: Double,
+        xmp: Double,
         omgadf: Double,
+        xnode: Double,
         tempa: Double,
         tempe: Double,
         templ: Double
-    ) -> (axn: Double, ayn: Double, aynl: Double, xl: Double) {
-        let a = pow(SGP4Constants.xke / state.originalMeanMotion, 2.0/3.0) * tempa * tempa
-        let e = state.eccentricity - tempe
-        let xl = xmdf + omgadf + state.dotRightAscension * templ
+    ) -> (am: Double, axnl: Double, aynl: Double, xl: Double, nm: Double, em: Double) {
+        // Update mean motion and semi-major axis for drag
+        var nm = state.originalMeanMotion
+        let am = pow(SGP4Constants.xke / nm, 2.0/3.0) * tempa * tempa
+        nm = SGP4Constants.xke / pow(am, 1.5)
 
-        // Lyddane modifications
-        let axnl = e * cos(omgadf)
-        let aynl = e * sin(omgadf) - state.aycof / (a * state.eta)
+        // Update eccentricity
+        var em = state.eccentricity - tempe
 
-        return (axnl, aynl, aynl, xl)
+        // Clamp eccentricity to valid range
+        if em < 1.0e-6 {
+            em = 1.0e-6
+        }
+
+        // Update mean anomaly with templ correction
+        let mm = xmp + state.originalMeanMotion * templ
+        _ = mm + omgadf + xnode  // xlm calculated but not used
+
+        // Lyddane modifications for long-period perturbations
+        let axnl = em * cos(omgadf)
+        let temp = 1.0 / (am * (1.0 - em * em))
+        let aynl = em * sin(omgadf) + temp * state.aycof
+        let xl = mm + omgadf + xnode + temp * state.xlcof * axnl
+
+        return (am, axnl, aynl, xl, nm, em)
     }
 
     /// Solve Kepler's equation for eccentric anomaly
     private func solveKeplerEquation(
-        axn: Double,
-        ayn: Double,
+        axnl: Double,
         aynl: Double,
-        xl: Double
+        xl: Double,
+        xnode: Double
     ) throws -> (u: Double, epw: Double) {
-        let u = fmod2p(xl - state.rightAscension)
+        let u = fmod2p(xl - xnode)
         var eo1 = u
         var tem5: Double = 9999.9
         var ktr = 1
 
         // Newton-Raphson iteration for Kepler's equation
-        while abs(tem5) >= SGP4Constants.keplerTolerance && ktr <= SGP4Constants.maxKeplerIterations {
+        while abs(tem5) >= 1.0e-12 && ktr <= 10 {
             let sineo1 = sin(eo1)
             let coseo1 = cos(eo1)
-            tem5 = 1.0 - coseo1 * axn - sineo1 * ayn
+            tem5 = 1.0 - coseo1 * axnl - sineo1 * aynl
 
-            tem5 = (u - aynl * coseo1 + axn * sineo1 - eo1) / tem5
+            tem5 = (u - aynl * coseo1 + axnl * sineo1 - eo1) / tem5
 
             if abs(tem5) >= 0.95 {
                 tem5 = tem5 > 0.0 ? 0.95 : -0.95
@@ -171,21 +205,22 @@ public class SGP4Propagator {
 
     /// Calculate short period preliminary quantities
     private func calculateShortPeriodPrelims(
-        axn: Double,
-        ayn: Double,
+        am: Double,
+        axnl: Double,
+        aynl: Double,
         epw: Double
     ) throws -> (ecosE: Double, esinE: Double, el2: Double, pl: Double, r: Double) {
-        let ecosE = axn * cos(epw) + ayn * sin(epw)
-        let esinE = axn * sin(epw) - ayn * cos(epw)
-        let el2 = axn * axn + ayn * ayn
-        let pl = state.semiMajorAxis * (1.0 - el2)
+        let ecosE = axnl * cos(epw) + aynl * sin(epw)
+        let esinE = axnl * sin(epw) - aynl * cos(epw)
+        let el2 = axnl * axnl + aynl * aynl
+        let pl = am * (1.0 - el2)
 
         // Check for negative pl
         guard pl >= 0 else {
             throw PropagationError.invalidEccentricity("Semi-latus rectum is negative")
         }
 
-        let r = state.semiMajorAxis * (1.0 - ecosE)
+        let r = am * (1.0 - ecosE)
 
         return (ecosE, esinE, el2, pl, r)
     }
@@ -193,8 +228,9 @@ public class SGP4Propagator {
     /// Calculate orientation vectors
     private func calculateOrientationVectors(
         u: Double,
-        axn: Double,
-        ayn: Double,
+        am: Double,
+        axnl: Double,
+        aynl: Double,
         ecosE: Double,
         esinE: Double,
         el2: Double,
@@ -202,40 +238,43 @@ public class SGP4Propagator {
         pl: Double,
         r: Double,
         xnode: Double,
-        tsince: Double
+        nm: Double
     ) -> (rdotk: Double, rfdotk: Double, rk: Double, uk: Double,
-          xn: Double, xinck: Double, xnodek: Double) {
-        var rdot = SGP4Constants.xke * sqrt(state.semiMajorAxis) * esinE / r
-        var rfdot = SGP4Constants.xke * sqrt(pl) / r
+          xinck: Double, xnodek: Double) {
+        // Calculate rdot and rfdot
+        let rdotl = sqrt(am) * esinE / r
+        let rvdotl = sqrt(pl) / r
+        let betal = sqrt(1.0 - el2)
+        let temp = esinE / (1.0 + betal)
 
-        let temp = ecosE / (1.0 + sqrt(1.0 - el2))
-
-        let cosu = state.semiMajorAxis / r * (cos(epw) - axn + ayn * esinE * temp)
-        let sinu = state.semiMajorAxis / r * (sin(epw) - ayn - axn * esinE * temp)
-        let u_new = atan2(sinu, cosu)
+        // Calculate true anomaly components
+        let sinu = am / r * (sin(epw) - aynl - axnl * temp)
+        let cosu = am / r * (cos(epw) - axnl + aynl * temp)
+        let su = atan2(sinu, cosu)
 
         let sin2u = (cosu + cosu) * sinu
         let cos2u = 1.0 - 2.0 * sinu * sinu
 
+        // Calculate temp1 and temp2 based on current pl (not pre-computed values!)
+        let tempVar = 1.0 / pl
+        let temp1 = 0.5 * SGP4Constants.j2 * tempVar
+        let temp2 = temp1 * tempVar
+
         // Short period perturbations
-        let rk = r * (1.0 - 1.5 * state.temp2 * state.beta * state.c3 * cos(2.0 * state.argumentOfPerigee)) +
-                 0.5 * state.temp1 * (1.0 - state.cosInclination * state.cosInclination) * cos2u
+        let rk = r * (1.0 - 1.5 * temp2 * betal * state.con41) +
+                 0.5 * temp1 * state.x1mth2 * cos2u
 
-        let uk = u_new - 0.25 * state.temp2 * (7.0 * state.cosInclination * state.cosInclination - 1.0) * sin2u
+        let uk = su - 0.25 * temp2 * state.x7thm1 * sin2u
 
-        let xnodek = xnode + 1.5 * state.temp2 * state.cosInclination * sin2u
+        let xnodek = xnode + 1.5 * temp2 * state.cosInclination * sin2u
 
-        let xinck = state.inclination + 1.5 * state.temp2 * state.cosInclination * state.sinInclination * cos2u
+        let xinck = state.inclination + 1.5 * temp2 * state.cosInclination * state.sinInclination * cos2u
 
-        rdot = rdot - state.originalMeanMotion * state.temp1 * (1.0 - state.cosInclination * state.cosInclination) * sin2u
+        // Update velocities
+        let mvt = rdotl - nm * temp1 * state.x1mth2 * sin2u / SGP4Constants.xke
+        let rvdot = rvdotl + nm * temp1 * (state.x1mth2 * cos2u + 1.5 * state.con41) / SGP4Constants.xke
 
-        rfdot = rfdot + state.originalMeanMotion * state.temp1 *
-                ((1.0 - state.cosInclination * state.cosInclination) * cos2u +
-                 1.5 * state.cosInclination * state.cosInclination)
-
-        let xn = SGP4Constants.xke / pow(state.semiMajorAxis, 1.5)
-
-        return (rdot, rfdot, rk, uk, xn, xinck, xnodek)
+        return (mvt, rvdot, rk, uk, xinck, xnodek)
     }
 
     /// Calculate position and velocity in TEME coordinate frame
@@ -268,9 +307,10 @@ public class SGP4Propagator {
         let y = rk * uy * SGP4Constants.earthRadius
         let z = rk * uz * SGP4Constants.earthRadius
 
-        let xdot = (rdotk * ux + rfdotk * vx) * SGP4Constants.earthRadius / 60.0
-        let ydot = (rdotk * uy + rfdotk * vy) * SGP4Constants.earthRadius / 60.0
-        let zdot = (rdotk * uz + rfdotk * vz) * SGP4Constants.earthRadius / 60.0
+        let vkmpersec = SGP4Constants.earthRadius * SGP4Constants.xke / 60.0
+        let xdot = (rdotk * ux + rfdotk * vx) * vkmpersec
+        let ydot = (rdotk * uy + rfdotk * vy) * vkmpersec
+        let zdot = (rdotk * uz + rfdotk * vz) * vkmpersec
 
         let position = Vector3D(x: x, y: y, z: z)
         let velocity = Vector3D(x: xdot, y: ydot, z: zdot)
