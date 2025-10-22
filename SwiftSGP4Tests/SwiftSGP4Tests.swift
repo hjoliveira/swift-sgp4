@@ -62,10 +62,11 @@ class SwiftSGP4Tests: XCTestCase {
         XCTAssertEqual(day, 164)
         XCTAssertEqual(tle.meanMotionDt2, -0.00000008)
         XCTAssertEqual(tle.meanMotionDdt6, 00000E-0)
-        XCTAssertEqual(tle.bstar, 0.81062, accuracy: 0.00001)
+        // BSTAR: 81062-5 = 0.81062E-5 = 0.0000081062
+        XCTAssertEqual(tle.bstar, 0.0000081062, accuracy: 0.00000000001)
         XCTAssertEqual(tle.inclination, 98.1805)
         XCTAssertEqual(tle.rightAscendingNode, 171.2383)
-        XCTAssertEqual(tle.eccentricity, 0001291)
+        XCTAssertEqual(tle.eccentricity, 0.0001291, accuracy: 0.0000001)
         XCTAssertEqual(tle.argumentPerigee, 78.4154)
         XCTAssertEqual(tle.meanAnomaly, 281.7186)
         XCTAssertEqual(tle.meanMotion, 14.59198020)

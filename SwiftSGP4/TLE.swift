@@ -52,23 +52,23 @@ public struct TLE {
     let TLE2_COL_REVATEPOCH = 64
     let TLE2_LEN_REVATEPOCH = 5
     
-    var name: String
+    public var name: String
 //    var lineOne: String
 //    var lineTwo: String
 
-    var noradNumber: Int
-    var intDesignator: String
-    var epoch: Date
-    var meanMotionDt2: Double
-    var meanMotionDdt6: Double
-    var bstar: Double
-    var inclination: Double
-    var rightAscendingNode: Double
-    var eccentricity: Double
-    var argumentPerigee: Double
-    var meanAnomaly: Double
-    var meanMotion: Double
-    var orbitNumber: Int
+    public var noradNumber: Int
+    public var intDesignator: String
+    public var epoch: Date
+    public var meanMotionDt2: Double
+    public var meanMotionDdt6: Double
+    public var bstar: Double
+    public var inclination: Double
+    public var rightAscendingNode: Double
+    public var eccentricity: Double
+    public var argumentPerigee: Double
+    public var meanAnomaly: Double
+    public var meanMotion: Double
+    public var orbitNumber: Int
     
     public init(name: String, tleFilename: String) throws {
         let tleText = try String(contentsOfFile: tleFilename, encoding: .utf8)
@@ -123,6 +123,69 @@ public struct TLE {
             }
             return Double(numericPart) ?? 0.0
         }
+
+        // Helper function to parse TLE scientific notation (e.g., "81062-5" = 0.81062E-5)
+        // Format: [sign]ddddd[sign]d where decimal point is IMPLIED before first digit
+        func parseScientificNotation(_ str: String) -> Double {
+            let trimmed = str.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                return 0.0
+            }
+
+            // Find the position of the exponent sign (last + or - in string)
+            var expSignPos = -1
+            for (index, char) in trimmed.enumerated() {
+                if (char == "-" || char == "+") && index > 0 {
+                    expSignPos = index
+                }
+            }
+
+            if expSignPos == -1 {
+                // No exponent, just parse as regular number
+                return parseDouble(trimmed)
+            }
+
+            // Split into mantissa and exponent parts
+            let mantissaStr = String(trimmed.prefix(expSignPos))
+            let exponentStr = String(trimmed.suffix(from: trimmed.index(trimmed.startIndex, offsetBy: expSignPos)))
+
+            // Parse mantissa (assume decimal point before first digit)
+            var mantissa = 0.0
+            var isNegative = false
+            var digits = ""
+
+            for char in mantissaStr {
+                if char == "-" {
+                    isNegative = true
+                } else if char == "+" {
+                    isNegative = false
+                } else if char.isNumber {
+                    digits.append(char)
+                } else if char == " " {
+                    continue
+                } else if char == "." {
+                    // Explicit decimal point - use as-is
+                    return parseDouble(trimmed)
+                }
+            }
+
+            if !digits.isEmpty {
+                if let value = Double(digits) {
+                    // Assume decimal point before first digit: "81062" -> 0.81062
+                    let divisor = pow(10.0, Double(digits.count))
+                    mantissa = value / divisor
+                    if isNegative {
+                        mantissa = -mantissa
+                    }
+                }
+            }
+
+            // Parse exponent
+            let exponent = Double(exponentStr) ?? 0.0
+
+            // Combine: mantissa × 10^exponent
+            return mantissa * pow(10.0, exponent)
+        }
         
         if !isValidLineLength(line: lineOne) {
             throw TLEError.invalidLineLength(1)
@@ -174,16 +237,17 @@ public struct TLE {
             throw TLEError.invalidElement("Invalid meanMotionDt2")
         }
 
-        self.meanMotionDdt6 = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6)) * 1E-05
+        self.meanMotionDdt6 = parseScientificNotation(trimmedSubstring(str: lineOne, location: TLE1_COL_MEANMOTIONDDT6, length: TLE1_LEN_MEANMOTIONDDT6))
 
-        self.bstar = parseDouble(trimmedSubstring(str: lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR)) * 1E-05
+        self.bstar = parseScientificNotation(trimmedSubstring(str: lineOne, location: TLE1_COL_BSTAR, length: TLE1_LEN_BSTAR))
 
         // line 2
         self.inclination = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_INCLINATION, length: TLE2_LEN_INCLINATION))
 
         self.rightAscendingNode = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_RAASCENDNODE, length: TLE2_LEN_RAASCENDNODE))
 
-        self.eccentricity = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY))
+        // Eccentricity is stored without decimal point: "0006703" = 0.0006703
+        self.eccentricity = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ECCENTRICITY, length: TLE2_LEN_ECCENTRICITY)) / 10_000_000.0
 
         self.argumentPerigee = parseDouble(trimmedSubstring(str: lineTwo, location: TLE2_COL_ARGPERIGEE, length: TLE2_LEN_ARGPERIGEE))
 
