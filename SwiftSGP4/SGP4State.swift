@@ -189,8 +189,10 @@ struct SGP4State {
                      (a0 * a0 * beta * beta * beta)
 
         // Calculate semi-major axis in earth radii
+        // Recover original mean motion by removing J2 secular perturbations
         let n0dp = meanMotionRadPerMin / (1.0 + delta0)
-        self.semiMajorAxis = pow(SGP4Constants.xke / n0dp, 2.0/3.0)
+        let a0dp = a0 * (1.0 - delta0)
+        self.semiMajorAxis = a0dp
         self.originalMeanMotion = n0dp
         self.meanMotion = n0dp
 
