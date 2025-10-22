@@ -39,7 +39,7 @@ public class SGP4Propagator {
         let tsince = minutesSinceEpoch
 
         // STEP 1: Update for secular gravity and atmospheric drag effects
-        let (xmdf, omgadf, xnoddf, omega, xmp, tsq, xnode, tempa, tempe, templ) =
+        let (xmdf, omgadf, _, _, _, _, xnode, tempa, tempe, templ) =
             updateSecularEffects(tsince: tsince)
 
         // STEP 2: Long period periodic terms
@@ -55,14 +55,14 @@ public class SGP4Propagator {
         let (u, epw) = try solveKeplerEquation(axn: axn, ayn: ayn, aynl: aynl, xl: xl)
 
         // STEP 4: Short period preliminary quantities
-        let (ecosE, esinE, el2, pl, r) = calculateShortPeriodPrelims(
+        let (ecosE, esinE, el2, pl, r) = try calculateShortPeriodPrelims(
             axn: axn,
             ayn: ayn,
             epw: epw
         )
 
         // STEP 5: Orientation vectors
-        let (rdotk, rfdotk, rk, uk, xn, xinck, xnodek) = calculateOrientationVectors(
+        let (rdotk, rfdotk, rk, uk, _, xinck, xnodek) = calculateOrientationVectors(
             u: u,
             axn: axn,
             ayn: ayn,
@@ -174,7 +174,7 @@ public class SGP4Propagator {
         axn: Double,
         ayn: Double,
         epw: Double
-    ) -> (ecosE: Double, esinE: Double, el2: Double, pl: Double, r: Double) {
+    ) throws -> (ecosE: Double, esinE: Double, el2: Double, pl: Double, r: Double) {
         let ecosE = axn * cos(epw) + ayn * sin(epw)
         let esinE = axn * sin(epw) - ayn * cos(epw)
         let el2 = axn * axn + ayn * ayn

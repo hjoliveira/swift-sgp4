@@ -220,8 +220,6 @@ struct SGP4State {
         // Calculate drag coefficients (C1-C5)
         let cosInclSq = cosInclination * cosInclination
         let theta2 = cosInclSq
-        let theta4 = theta2 * theta2
-        let xi = 1.0 / (semiMajorAxis - 1.0)
 
         let s = semiMajorAxis * (1.0 - eccentricity) - 1.0 + SGP4Constants.s0 / SGP4Constants.earthRadius
 
