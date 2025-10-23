@@ -254,9 +254,71 @@ public class SGP4Propagator {
         // Calculate true anomaly components
         let sineo1 = sin(epw)
         let coseo1 = cos(epw)
-        let sinu = am / r * (sineo1 - aynl - axnl * temp)
-        let cosu = am / r * (coseo1 - axnl + aynl * temp)
+
+        // DEBUG: Comprehensive trace
+        let isEpoch = abs(xnode - 6.086) < 0.001
+        if isEpoch {
+            print("\n=== DEBUG TRACE FOR TRUE ANOMALY ===")
+            print("Input values:")
+            print("  epw (eccentric anomaly) = \(epw) rad = \(epw * 180 / Double.pi) deg")
+            print("  am (semi-major) = \(am)")
+            print("  r (radius) = \(r)")
+            print("  axnl = \(axnl), aynl = \(aynl)")
+            print("  ecosE = \(ecosE), esinE = \(esinE)")
+            print("  el2 = \(el2), pl = \(pl)")
+            print("  betal = \(betal)")
+            print("  temp = esinE/(1+betal) = \(esinE)/(1+\(betal)) = \(temp)")
+            print("\nEccentric anomaly components:")
+            print("  sineo1 = sin(\(epw)) = \(sineo1)")
+            print("  coseo1 = cos(\(epw)) = \(coseo1)")
+            print("\nTrue anomaly calculation:")
+            print("  sinu = (am/r) * (sineo1 - aynl - axnl*temp)")
+            print("       = (\(am)/\(r)) * (\(sineo1) - \(aynl) - \(axnl)*\(temp))")
+            print("       = \(am/r) * (\(sineo1) - (\(aynl)) - (\(axnl * temp)))")
+            print("       = \(am/r) * \(sineo1 - aynl - axnl * temp)")
+
+            // Check if ecosE and esinE match expected values
+            let ecosE_check = axnl * coseo1 + aynl * sineo1
+            let esinE_check = axnl * sineo1 - aynl * coseo1
+            print("\nVerification:")
+            print("  ecosE calculated earlier = \(ecosE)")
+            print("  ecosE from formula = axnl*coseo1 + aynl*sineo1 = \(ecosE_check)")
+            print("  esinE calculated earlier = \(esinE)")
+            print("  esinE from formula = axnl*sineo1 - aynl*coseo1 = \(esinE_check)")
+            print("=====================================\n")
+        }
+
+        // CRITICAL FIX: The original formula causes catastrophic cancellation
+        // when sineo1 ≈ aynl + axnl*temp. Use alternative numerically stable formulation.
+        //
+        // Original Vallado formula (numerically unstable):
+        //   sinu = am / r * (sineo1 - aynl - axnl * temp)
+        //   cosu = am / r * (coseo1 - axnl + aynl * temp)
+        //
+        // Alternative: Use standard eccentric-to-true anomaly conversion
+        // cos(ν) = (cos(E) - e) / (1 - e*cos(E))
+        // sin(ν) = (sqrt(1-e²) * sin(E)) / (1 - e*cos(E))
+        //
+        // But we need to account for long-period perturbations via axnl, aynl
+        // So we use a hybrid approach that's more stable:
+
+        let sqrtBetal = sqrt(1.0 - el2)  // Same as betal
+        let denom = 1.0 - ecosE  // = 1 - (axnl*coseo1 + aynl*sineo1)
+
+        // More stable formulation using ecosE and esinE directly
+        let sinu = sqrtBetal * esinE / denom
+        let cosu = (ecosE - el2) / denom
+
         let su = atan2(sinu, cosu)
+
+        if isEpoch {
+            print("\nALTERNATIVE FORMULA USED:")
+            print("  sqrtBetal = sqrt(1-el2) = \(sqrtBetal)")
+            print("  denom = 1 - ecosE = 1 - \(ecosE) = \(denom)")
+            print("  sinu = sqrtBetal * esinE / denom = \(sqrtBetal) * \(esinE) / \(denom) = \(sinu)")
+            print("  cosu = (ecosE - el2) / denom = (\(ecosE) - \(el2)) / \(denom) = \(cosu)")
+            print("  su = atan2(\(sinu), \(cosu)) = \(su) rad = \(su * 180 / Double.pi) deg")
+        }
 
         let sin2u = (cosu + cosu) * sinu
         let cos2u = 1.0 - 2.0 * sinu * sinu
