@@ -299,6 +299,7 @@ public class SGP4Propagator {
         let cosik = cos(xinck)
         let sinnok = sin(xnodek)
         let cosnok = cos(xnodek)
+
         let xmx = -sinnok * cosik
         let xmy = cosnok * cosik
         let ux = xmx * sinuk + cosnok * cosuk
