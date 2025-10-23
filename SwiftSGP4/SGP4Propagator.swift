@@ -185,11 +185,15 @@ public class SGP4Propagator {
         var ktr = 1
 
         // Newton-Raphson iteration for Kepler's equation
+        // Kepler equation (Vallado form): u = eo1 + aynl * cos(eo1) - axnl * sin(eo1)
         while abs(tem5) >= 1.0e-12 && ktr <= 10 {
             let sineo1 = sin(eo1)
             let coseo1 = cos(eo1)
+
+            // This is the denominator for Newton-Raphson
             tem5 = 1.0 - coseo1 * axnl - sineo1 * aynl
 
+            // This is the update step
             tem5 = (u - aynl * coseo1 + axnl * sineo1 - eo1) / tem5
 
             if abs(tem5) >= 0.95 {
@@ -248,8 +252,10 @@ public class SGP4Propagator {
         let temp = esinE / (1.0 + betal)
 
         // Calculate true anomaly components
-        let sinu = am / r * (sin(epw) - aynl - axnl * temp)
-        let cosu = am / r * (cos(epw) - axnl + aynl * temp)
+        let sineo1 = sin(epw)
+        let coseo1 = cos(epw)
+        let sinu = am / r * (sineo1 - aynl - axnl * temp)
+        let cosu = am / r * (coseo1 - axnl + aynl * temp)
         let su = atan2(sinu, cosu)
 
         let sin2u = (cosu + cosu) * sinu
