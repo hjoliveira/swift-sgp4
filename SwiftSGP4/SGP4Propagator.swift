@@ -15,5 +15,8 @@ public class SGP4Propagator {
     /// - Returns: Satellite state (position and velocity in TEME frame)
     /// - Throws: PropagationError if propagation fails
     public func propagate(minutesSinceEpoch: Double) throws -> SatelliteState {
-        
+        // TODO: Implement full SGP4 propagation algorithm
+        // This is a stub implementation to allow the project to compile
+        fatalError("SGP4 propagation not yet implemented")
     }
+}

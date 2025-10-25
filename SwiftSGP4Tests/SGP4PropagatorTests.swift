@@ -104,8 +104,6 @@ class SGP4PropagatorTests: XCTestCase {
     /// Test satellite 28057 (04632A - MOLNIYA 2-14)
     /// Orbit characteristics: Deep space, 12-hour resonant, e=0.7
     func testSatellite28057_DeepSpace() throws {
-        throw XCTSkip("SDP4 deep-space propagation not yet implemented - will be Phase 6")
-
         // Official TLE from SGP4-VER.TLE
         let tle = try TLE(
             name: "28057",
