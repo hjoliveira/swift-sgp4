@@ -72,7 +72,8 @@ class CoordinateConversionTests: XCTestCase {
     /// Test conversion for polar position
     func testTEME_to_Geodetic_PolarPosition() throws {
         // Satellite over North Pole at altitude ~630 km
-        let temePosition = Vector3D(x: 0.0, y: 0.0, z: 7000.0)
+        // Using polar radius: 6356.752 + 630 = 6986.752 km
+        let temePosition = Vector3D(x: 0.0, y: 0.0, z: 6987.0)
 
         let geodetic = CoordinateConverter.temeToGeodetic(position: temePosition)
 
@@ -83,7 +84,8 @@ class CoordinateConversionTests: XCTestCase {
     /// Test conversion for ISS typical position
     func testTEME_to_Geodetic_ISSOrbit() throws {
         // Typical ISS position: altitude ~400 km, inclination 51.6 degrees
-        let temePosition = Vector3D(x: 5000.0, y: 3000.0, z: 4000.0)
+        // Position at ~6778 km radius (6378 + 400 km altitude)
+        let temePosition = Vector3D(x: 4793.0, y: 2876.0, z: 3834.0)
 
         let geodetic = CoordinateConverter.temeToGeodetic(position: temePosition)
 

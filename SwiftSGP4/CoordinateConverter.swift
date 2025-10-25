@@ -42,11 +42,58 @@ public class CoordinateConverter {
     /// - Parameter position: Position vector in TEME frame (km)
     /// - Returns: Geodetic coordinate (latitude, longitude, altitude)
     public static func temeToGeodetic(position: Vector3D) -> GeodeticCoordinate {
-        // TODO: Implement TEME to Geodetic conversion
-        // This uses an iterative algorithm to solve for geodetic latitude
+        // TEME and ECEF share the same geodetic conversion (difference is time-based rotation)
+        // We can treat TEME positions as ECEF for geodetic purposes
 
-        // Stub implementation - returns zero values
-        return GeodeticCoordinate(latitude: 0, longitude: 0, altitude: 0)
+        let x = position.x
+        let y = position.y
+        let z = position.z
+
+        // Calculate longitude (degrees)
+        let longitude = atan2(y, x) * 180.0 / .pi
+
+        // Calculate distance from Z-axis
+        let p = sqrt(x * x + y * y)
+
+        // Special handling for poles (when p is very small)
+        if p < 1e-10 {
+            // At the poles
+            let latitude = z > 0 ? 90.0 : -90.0
+            let altitude = abs(z) - earthRadiusPolar
+            return GeodeticCoordinate(latitude: latitude, longitude: longitude, altitude: altitude)
+        }
+
+        // Iteratively calculate geodetic latitude
+        // Starting approximation
+        var lat = atan2(z, p * (1.0 - earthEccentricitySquared))
+        var previousLat: Double
+        var iterations = 0
+        let maxIterations = 10
+
+        repeat {
+            previousLat = lat
+            let sinLat = sin(lat)
+
+            // Radius of curvature in the prime vertical
+            let N = earthRadiusEquatorial / sqrt(1.0 - earthEccentricitySquared * sinLat * sinLat)
+
+            // Calculate altitude
+            let altitude = p / cos(lat) - N
+
+            // Update latitude estimate
+            lat = atan2(z, p * (1.0 - earthEccentricitySquared * N / (N + altitude)))
+
+            iterations += 1
+        } while abs(lat - previousLat) > 1e-12 && iterations < maxIterations
+
+        let latitude = lat * 180.0 / .pi
+
+        // Final altitude calculation
+        let sinLat = sin(lat)
+        let N = earthRadiusEquatorial / sqrt(1.0 - earthEccentricitySquared * sinLat * sinLat)
+        let altitude = p / cos(lat) - N
+
+        return GeodeticCoordinate(latitude: latitude, longitude: longitude, altitude: altitude)
     }
 
     /// Convert Geodetic coordinates to TEME position
@@ -55,10 +102,24 @@ public class CoordinateConverter {
     ///   - date: Date for the conversion
     /// - Returns: Position vector in TEME frame (km)
     public static func geodeticToTEME(coordinate: GeodeticCoordinate, date: Date) -> Vector3D {
-        // TODO: Implement Geodetic to TEME conversion
+        // Convert lat/lon from degrees to radians
+        let latRad = coordinate.latitude * .pi / 180.0
+        let lonRad = coordinate.longitude * .pi / 180.0
 
-        // Stub implementation - returns zero vector
-        return Vector3D(x: 0, y: 0, z: 0)
+        let sinLat = sin(latRad)
+        let cosLat = cos(latRad)
+        let sinLon = sin(lonRad)
+        let cosLon = cos(lonRad)
+
+        // Radius of curvature in the prime vertical (N)
+        let N = earthRadiusEquatorial / sqrt(1.0 - earthEccentricitySquared * sinLat * sinLat)
+
+        // Calculate ECEF/TEME coordinates
+        let x = (N + coordinate.altitude) * cosLat * cosLon
+        let y = (N + coordinate.altitude) * cosLat * sinLon
+        let z = (N * (1.0 - earthEccentricitySquared) + coordinate.altitude) * sinLat
+
+        return Vector3D(x: x, y: y, z: z)
     }
 
     // MARK: - Earth Constants (WGS84)
