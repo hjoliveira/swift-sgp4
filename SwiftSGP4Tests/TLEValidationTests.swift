@@ -1,10 +1,3 @@
-//
-//  TLEValidationTests.swift
-//  SwiftSGP4Tests
-//
-//  Test cases for TLE parsing, validation, and edge cases
-//
-
 import XCTest
 @testable import SwiftSGP4
 

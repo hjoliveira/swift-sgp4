@@ -1,12 +1,3 @@
-//
-//  CoordinateConversionTests.swift
-//  SwiftSGP4Tests
-//
-//  Test cases for coordinate system transformations
-//  TEME (True Equator Mean Equinox) <-> ECEF (Earth-Centered Earth-Fixed)
-//  TEME <-> Geodetic (Latitude, Longitude, Altitude)
-//
-
 import XCTest
 @testable import SwiftSGP4
 

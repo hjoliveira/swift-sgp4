@@ -1,10 +1,3 @@
-//
-//  Vector3D.swift
-//  SwiftSGP4
-//
-//  Copyright © 2024 SwiftSGP4. All rights reserved.
-//
-
 import Foundation
 
 /// Three-dimensional vector for position and velocity
