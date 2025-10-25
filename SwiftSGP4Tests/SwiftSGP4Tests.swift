@@ -1,11 +1,3 @@
-//
-//  SwiftSGP4Tests.swift
-//  SwiftSGP4Tests
-//
-//  Created by Henrique Oliveira on 13/6/15.
-//  Copyright © 2015 Henrique Oliveira. All rights reserved.
-//
-
 import XCTest
 @testable import SwiftSGP4
 

@@ -1,11 +1,3 @@
-//
-//  SwiftSGP4.h
-//  SwiftSGP4
-//
-//  Created by Henrique Oliveira on 13/6/15.
-//  Copyright © 2015 Henrique Oliveira. All rights reserved.
-//
-
 #import <UIKit/UIKit.h>
 
 //! Project version number for SwiftSGP4.

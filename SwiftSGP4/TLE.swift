@@ -1,11 +1,3 @@
-//
-//  TLE.swift
-//  SwiftSGP4
-//
-//  Created by Henrique Oliveira on 12/6/15.
-//  Copyright © 2015 Henrique Oliveira. All rights reserved.
-//
-
 import Foundation
 
 // Format described at http://www.celestrak.com/NORAD/documentation/tle-fmt.asp
