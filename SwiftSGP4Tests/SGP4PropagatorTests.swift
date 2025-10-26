@@ -99,18 +99,124 @@ class SGP4PropagatorTests: XCTestCase {
         try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
     }
 
-    // MARK: - Satellite 28057 Tests (Deep Space - 24-hour orbit)
+    // MARK: - Satellite 28057 Tests (CBERS 2 - Near Earth, Very Low Eccentricity)
 
-    /// Test satellite 28057 (04632A - MOLNIYA 2-14)
-    /// Orbit characteristics: Deep space, 12-hour resonant, e=0.7
-    func testSatellite28057_DeepSpace() throws {
-        throw XCTSkip("SDP4 (deep-space) propagation not yet implemented")
+    /// Test satellite 28057 (03049A - CBERS 2)
+    /// Orbit characteristics: Near-earth, very low eccentricity (e=0.0000884)
+    /// Test range: 0 to 720 minutes at 360-minute intervals
+    func testSatellite28057_Propagation() throws {
+        // Official TLE from SGP4-VER.TLE (corrected)
+        let tle = try TLE(
+            name: "28057",
+            lineOne: "1 28057U 03049A   06177.78615833  .00000060  00000-0  35940-4 0  1836",
+            lineTwo: "2 28057  98.4283 247.6961 0000884  88.1964 271.9322 14.35478080140550"
+        )
 
-        // TODO: Implement SDP4 algorithm for deep-space satellites
-        // TLE: 1 28057U 04632A   06176.56503869  .00000092  00000-0  00000+0 0  8139
-        //      2 28057  63.1979 327.8107 7313992 120.6404 259.3288  2.00321811 13695
-        // Expected position: (-9060.47, 4658.71, 813.69) km
-        // Expected velocity: (-2.233, -0.721, 0.695) km/s
+        let propagator = try SGP4Propagator(tle: tle)
+
+        // Expected states from python-sgp4 reference implementation
+        let expectedStates: [ExpectedState] = [
+            // At t=0.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 0.0,
+                position: Vector3D(x: -2715.28237486, y: -6619.26436889, z: -0.01341443),
+                velocity: Vector3D(x: -1.00858727, y: 0.42278200, z: 7.38527294)
+            ),
+            // At t=360.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 360.0,
+                position: Vector3D(x: 2801.25607157, y: 5455.03931333, z: -3692.12865694),
+                velocity: Vector3D(x: -0.59509586, y: -3.95192312, z: -6.29879913)
+            ),
+            // At t=720.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 720.0,
+                position: Vector3D(x: -2090.79884266, y: -2723.22832193, z: 6266.13356576),
+                velocity: Vector3D(x: 1.99264067, y: 6.33752952, z: 3.41180308)
+            )
+        ]
+
+        try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
+    }
+
+    // MARK: - Satellite 28350 Tests (COSMOS 2405 - Near Earth, High Drag)
+
+    /// Test satellite 28350 (04020A - COSMOS 2405)
+    /// Orbit characteristics: Near-earth, perigee=127.20km, high drag (BSTAR=0.00018678)
+    /// Test range: 0 to 240 minutes at 120-minute intervals
+    func testSatellite28350_Propagation() throws {
+        // Official TLE from SGP4-VER.TLE
+        let tle = try TLE(
+            name: "28350",
+            lineOne: "1 28350U 04020A   06167.21788666  .16154492  76267-5  18678-3 0  8894",
+            lineTwo: "2 28350  64.9977 345.6130 0024870 260.7578  99.9590 16.47856722116490"
+        )
+
+        let propagator = try SGP4Propagator(tle: tle)
+
+        // Expected states from python-sgp4 reference implementation
+        let expectedStates: [ExpectedState] = [
+            // At t=0.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 0.0,
+                position: Vector3D(x: 6333.08123128, y: -1580.82852326, z: 90.69355720),
+                velocity: Vector3D(x: 0.71463442, y: 3.22424655, z: 7.08312813)
+            ),
+            // At t=120.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 120.0,
+                position: Vector3D(x: -3990.93845855, y: 3052.98341907, z: 4155.32700629),
+                velocity: Vector3D(x: -5.90900619, y: -0.87630797, z: -5.03913140)
+            ),
+            // At t=240.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 240.0,
+                position: Vector3D(x: -603.55232010, y: -2685.13474569, z: -5891.70274282),
+                velocity: Vector3D(x: 7.57251991, y: -1.97565673, z: 0.12172261)
+            )
+        ]
+
+        try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
+    }
+
+    // MARK: - Satellite 88888 Tests (STR#3 Official SGP4 Test Case)
+
+    /// Test satellite 88888 (STR#3 SGP4 test)
+    /// Orbit characteristics: Official SGP4 test case, e=0.0086731
+    /// Test range: 0 to 720 minutes at 360-minute intervals
+    func testSatellite88888_Propagation() throws {
+        // Official TLE from SGP4-VER.TLE
+        let tle = try TLE(
+            name: "88888",
+            lineOne: "1 88888U          80275.98708465  .00073094  13844-3  66816-4 0    87",
+            lineTwo: "2 88888  72.8435 115.9689 0086731  52.6988 110.5714 16.05824518  1058"
+        )
+
+        let propagator = try SGP4Propagator(tle: tle)
+
+        // Expected states from python-sgp4 reference implementation
+        let expectedStates: [ExpectedState] = [
+            // At t=0.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 0.0,
+                position: Vector3D(x: 2328.96975262, y: -5995.22051338, z: 1719.97297192),
+                velocity: Vector3D(x: 2.91207328, y: -0.98341796, z: -7.09081621)
+            ),
+            // At t=360.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 360.0,
+                position: Vector3D(x: 2456.10706533, y: -6071.93855503, z: 1222.89768554),
+                velocity: Vector3D(x: 2.67939004, y: -0.44829081, z: -7.22879215)
+            ),
+            // At t=720.0 minutes
+            ExpectedState(
+                minutesSinceEpoch: 720.0,
+                position: Vector3D(x: 2567.56229695, y: -6112.50383922, z: 713.96374435),
+                velocity: Vector3D(x: 2.44024575, y: 0.09810900, z: -7.31995926)
+            )
+        ]
+
+        try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
     }
 
     // MARK: - Edge Case Tests
