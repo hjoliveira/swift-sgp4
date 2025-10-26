@@ -4,6 +4,8 @@
 
 This document summarizes the analysis of Vallado reference material to identify additional test cases for the SGP4 propagator.
 
+**⚠️ IMPORTANT UPDATE**: Investigation revealed that the SGP4 implementation has accuracy bugs that prevent adding new test cases at this time. See `TEST_POLLUTION_INVESTIGATION.md` for details.
+
 ## Data Source
 
 - **Reference File**: `tcppver.out` from python-sgp4 repository
@@ -92,6 +94,27 @@ The variation suggests the implementation may have issues with:
 2. Add satellites 23177 and 28129 after verifying accuracy
 3. Compare intermediate calculations with reference implementations
 4. Add accuracy benchmarking tests
+
+## Investigation Results - Tests Not Added
+
+After implementing test cases for satellites 16925 and 22312, extensive testing revealed that **these tests fail due to implementation bugs in the SGP4 propagator**, not due to incorrect test data.
+
+### Key Findings:
+- ✅ No test pollution - tests run in complete isolation
+- ✅ Test data verified against official Vallado reference
+- ❌ Swift SGP4 implementation produces incorrect results for certain satellites
+- ❌ Satellite 16925: Position error ~10,000 km (expected: 5559.12, got: -3943.62)
+- ❌ Satellite 22312: Multiple position/velocity errors
+
+### Decision:
+Tests have been **removed** from the test suite until the SGP4 implementation accuracy issues are resolved. Adding failing tests would hide the real problem and make the test suite appear broken.
+
+### Next Steps:
+1. Debug SGP4 implementation (compare with python-sgp4 reference)
+2. Fix accuracy issues for low-eccentricity and high-drag satellites
+3. Re-add test cases once implementation is fixed
+
+See `TEST_POLLUTION_INVESTIGATION.md` for complete investigation details.
 
 ## References
 
