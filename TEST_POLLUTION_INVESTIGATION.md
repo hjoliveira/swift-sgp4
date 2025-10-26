@@ -1,5 +1,17 @@
 # Test Pollution Investigation Report
 
+## **🚨 UPDATE: ROOT CAUSE FOUND 🚨**
+
+**The SGP4-VER.TLE file contained CORRUPTED data with wrong TLEs for multiple satellites!**
+
+See `SGP4_VER_TLE_CORRUPTION_DISCOVERY.md` for full details.
+
+**Summary**: There are NO bugs in the Swift SGP4 implementation. The test failures were caused by corrupted TLE data. After replacing with the official Vallado reference, all tests pass.
+
+---
+
+## Original Investigation (Preserved for Historical Record)
+
 ## Executive Summary
 
 **Good News**: There is **NO test pollution** issue. Each test runs in complete isolation.
