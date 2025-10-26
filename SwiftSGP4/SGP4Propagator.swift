@@ -21,7 +21,7 @@ public class SGP4Propagator {
     private var e0: Double = 0       // Eccentricity
     private var i0: Double = 0       // Inclination (rad)
     private var omega0: Double = 0   // Argument of perigee (rad)
-    private var omegadot: Double = 0 // Right ascension of ascending node (rad)
+    private var raan0: Double = 0    // Right ascension of ascending node (rad)
     private var m0: Double = 0       // Mean anomaly (rad)
     private var bstar: Double = 0    // Drag coefficient
 
@@ -58,8 +58,15 @@ public class SGP4Propagator {
     private var omgcof: Double = 0   // Omega coefficient
     private var xmcof: Double = 0    // Mean anomaly coefficient
     private var n0pp: Double = 0     // Recovered mean motion (after Kozai)
+    private var d2: Double = 0       // Drag coefficient 2
+    private var d3: Double = 0       // Drag coefficient 3
+    private var d4: Double = 0       // Drag coefficient 4
+    private var t3cof: Double = 0    // Time^3 coefficient
+    private var t4cof: Double = 0    // Time^4 coefficient
+    private var t5cof: Double = 0    // Time^5 coefficient
 
     private var isDeepSpace: Bool = false
+    private var isimp: Int = 0       // Simplified propagation flag
 
     /// Initialize propagator with a TLE
     public init(tle: TLE) throws {
@@ -70,7 +77,7 @@ public class SGP4Propagator {
         self.e0 = tle.eccentricity
         self.i0 = tle.inclination * .pi / 180.0
         self.omega0 = tle.argumentPerigee * .pi / 180.0
-        self.omegadot = tle.rightAscendingNode * .pi / 180.0
+        self.raan0 = tle.rightAscendingNode * .pi / 180.0
         self.m0 = tle.meanAnomaly * .pi / 180.0
         self.bstar = tle.bstar
 
@@ -193,6 +200,25 @@ public class SGP4Propagator {
         if e0 > 1e-4 {
             xmcof = -2.0 / 3.0 * coef * bstar / eeta
         }
+
+        // Check if simplified propagation (low perigee < 220 km)
+        if perige < 220.0 {
+            isimp = 1
+        } else {
+            isimp = 0
+            // Calculate higher-order drag terms for non-simplified propagation
+            let cc1sq = c1 * c1
+            d2 = 4.0 * aodp * tsi * cc1sq
+
+            let temp = d2 * tsi * c1 / 3.0
+            d3 = (17.0 * aodp + s4) * temp
+            d4 = 0.5 * temp * aodp * tsi * (221.0 * aodp + 31.0 * s4) * c1
+
+            t3cof = d2 + 2.0 * cc1sq
+            t4cof = 0.25 * (3.0 * d3 + c1 * (12.0 * d2 + 10.0 * cc1sq))
+            t5cof = 0.2 * (3.0 * d4 + 12.0 * c1 * d3 + 6.0 * d2 * d2 +
+                           15.0 * cc1sq * (2.0 * d2 + cc1sq))
+        }
     }
 
     /// Propagate the satellite to a specific time
@@ -205,7 +231,7 @@ public class SGP4Propagator {
         // Update for secular gravity and atmospheric drag
         let xmdf = m0 + xmdot * tsince
         let omgadf = omega0 + omgdot * tsince
-        let xnoddf = omegadot + xnodot * tsince
+        let xnoddf = raan0 + xnodot * tsince
         var omega = omgadf
         var xmp = xmdf
         let tsq = tsince * tsince
@@ -221,9 +247,17 @@ public class SGP4Propagator {
         xmp = xmdf + temp
         omega = omgadf - temp
         let tcube = tsq * tsince
-        tempa = tempa - c2 * tsq - c3 * tcube
-        tempe = tempe + bstar * c5 * (sin(xmp) - sinmo)
-        templ = templ + t2cof * tcube
+        let tfour = tsince * tcube
+
+        // Apply drag and perturbation corrections
+        if isimp != 1 {
+            tempa = tempa - d2 * tsq - d3 * tcube - d4 * tfour
+            tempe = tempe + bstar * c5 * (sin(xmp) - sinmo)
+            templ = templ + t3cof * tcube + tfour * (t4cof + tsince * t5cof)
+        } else {
+            tempe = tempe + bstar * c5 * (sin(xmp) - sinmo)
+            // templ already has t2cof * tsq, no additional terms for simplified
+        }
 
         let a = aodp * tempa * tempa
         let e = e0 - tempe
