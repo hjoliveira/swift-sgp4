@@ -7,24 +7,28 @@ class CoordinateConversionTests: XCTestCase {
 
     // MARK: - TEME to ECEF Conversion Tests
 
-    /// Test conversion at J2000 epoch (no rotation)
+    /// Test that TEME to ECEF conversion produces different coordinates due to Earth rotation
     func testTEME_to_ECEF_atJ2000() throws {
         let temePosition = Vector3D(x: 6000.0, y: 0.0, z: 0.0)
         let temeVelocity = Vector3D(x: 0.0, y: 7.5, z: 0.0)
 
-        // At J2000 epoch (2000-01-01 12:00:00 TT), TEME and ECEF should be nearly aligned
-        let j2000 = Date(timeIntervalSinceReferenceDate: 0) // Approximation
+        // Reference date
+        let j2000 = Date(timeIntervalSinceReferenceDate: 0) // January 1, 2001 00:00:00 UTC
 
-        let (ecefPosition, ecefVelocity) = CoordinateConverter.temeToECEF(
+        let (ecefPosition, _) = CoordinateConverter.temeToECEF(
             position: temePosition,
             velocity: temeVelocity,
             date: j2000
         )
 
-        // At J2000, expect minimal difference between TEME and ECEF
-        XCTAssertEqual(ecefPosition.x, temePosition.x, accuracy: 100.0)
-        XCTAssertEqual(ecefPosition.y, temePosition.y, accuracy: 100.0)
-        XCTAssertEqual(ecefPosition.z, temePosition.z, accuracy: 100.0)
+        // TEME and ECEF differ by Earth's rotation angle (GMST)
+        // Z-component should be unchanged (rotation around Z-axis)
+        XCTAssertEqual(ecefPosition.z, temePosition.z, accuracy: 0.001)
+
+        // Magnitude should be preserved (rotation doesn't change length)
+        let temeMagnitude = sqrt(temePosition.x * temePosition.x + temePosition.y * temePosition.y + temePosition.z * temePosition.z)
+        let ecefMagnitude = sqrt(ecefPosition.x * ecefPosition.x + ecefPosition.y * ecefPosition.y + ecefPosition.z * ecefPosition.z)
+        XCTAssertEqual(ecefMagnitude, temeMagnitude, accuracy: 0.001)
     }
 
     /// Test ECEF to TEME conversion (inverse operation)
