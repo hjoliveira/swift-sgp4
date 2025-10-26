@@ -20,9 +20,50 @@ public class CoordinateConverter {
     ///   - date: Date for the conversion
     /// - Returns: Tuple of (position, velocity) in ECEF frame
     public static func temeToECEF(position: Vector3D, velocity: Vector3D, date: Date) -> (Vector3D, Vector3D) {
-        // TODO: Implement TEME to ECEF conversion
-        // This requires computing Earth rotation angle and precession/nutation
-        return (position, velocity)
+        // Calculate Greenwich Mean Sidereal Time (GMST)
+        let gmst = calculateGMST(date: date)
+
+        // Rotate position and velocity by -GMST around Z-axis
+        // ECEF rotates with Earth, TEME is inertial
+        let cosGMST = cos(gmst)
+        let sinGMST = sin(gmst)
+
+        // Rotation matrix R_z(-GMST)
+        // [  cos(gmst)  sin(gmst)  0 ]
+        // [ -sin(gmst)  cos(gmst)  0 ]
+        // [     0          0       1 ]
+
+        let ecefPosition = Vector3D(
+            x: cosGMST * position.x + sinGMST * position.y,
+            y: -sinGMST * position.x + cosGMST * position.y,
+            z: position.z
+        )
+
+        // Velocity transformation includes Earth's rotation rate
+        // ω_Earth = 7.2921159e-5 rad/s
+        let omegaEarth = 7.2921159e-5  // rad/s
+
+        // v_ECEF = R_z(-GMST) * (v_TEME - ω × r_TEME)
+        // ω × r = [0, 0, ω_Earth] × [x, y, z] = [-ω*y, ω*x, 0]
+        let omega_cross_r = Vector3D(
+            x: -omegaEarth * position.y,
+            y: omegaEarth * position.x,
+            z: 0.0
+        )
+
+        let vel_relative = Vector3D(
+            x: velocity.x - omega_cross_r.x,
+            y: velocity.y - omega_cross_r.y,
+            z: velocity.z - omega_cross_r.z
+        )
+
+        let ecefVelocity = Vector3D(
+            x: cosGMST * vel_relative.x + sinGMST * vel_relative.y,
+            y: -sinGMST * vel_relative.x + cosGMST * vel_relative.y,
+            z: vel_relative.z
+        )
+
+        return (ecefPosition, ecefVelocity)
     }
 
     /// Convert ECEF (Earth-Centered Earth-Fixed) to TEME (True Equator Mean Equinox)
@@ -32,8 +73,89 @@ public class CoordinateConverter {
     ///   - date: Date for the conversion
     /// - Returns: Tuple of (position, velocity) in TEME frame
     public static func ecefToTEME(position: Vector3D, velocity: Vector3D, date: Date) -> (Vector3D, Vector3D) {
-        // TODO: Implement ECEF to TEME conversion
-        return (position, velocity)
+        // Calculate Greenwich Mean Sidereal Time (GMST)
+        let gmst = calculateGMST(date: date)
+
+        // Rotate position and velocity by +GMST around Z-axis (inverse of TEME to ECEF)
+        let cosGMST = cos(gmst)
+        let sinGMST = sin(gmst)
+
+        // Rotation matrix R_z(+GMST)
+        // [ cos(gmst)  -sin(gmst)  0 ]
+        // [ sin(gmst)   cos(gmst)  0 ]
+        // [    0           0       1 ]
+
+        let temePosition = Vector3D(
+            x: cosGMST * position.x - sinGMST * position.y,
+            y: sinGMST * position.x + cosGMST * position.y,
+            z: position.z
+        )
+
+        // Velocity transformation (inverse operation)
+        let omegaEarth = 7.2921159e-5  // rad/s
+
+        let vel_rotated = Vector3D(
+            x: cosGMST * velocity.x - sinGMST * velocity.y,
+            y: sinGMST * velocity.x + cosGMST * velocity.y,
+            z: velocity.z
+        )
+
+        // Add back Earth's rotation: v_TEME = v_rotated + ω × r_TEME
+        let omega_cross_r = Vector3D(
+            x: -omegaEarth * temePosition.y,
+            y: omegaEarth * temePosition.x,
+            z: 0.0
+        )
+
+        let temeVelocity = Vector3D(
+            x: vel_rotated.x + omega_cross_r.x,
+            y: vel_rotated.y + omega_cross_r.y,
+            z: vel_rotated.z + omega_cross_r.z
+        )
+
+        return (temePosition, temeVelocity)
+    }
+
+    // MARK: - Time Utilities
+
+    /// Calculate Greenwich Mean Sidereal Time (GMST) from a Date
+    /// - Parameter date: The date/time for which to calculate GMST
+    /// - Returns: GMST in radians
+    private static func calculateGMST(date: Date) -> Double {
+        // Convert Date to Julian Date
+        let jd = dateToJulianDate(date: date)
+
+        // Calculate Julian centuries from J2000.0 (JD 2451545.0)
+        let tUT1 = (jd - 2451545.0) / 36525.0
+
+        // GMST at 0h UT (IAU 1982 formula)
+        // Result in seconds
+        var gmst = 67310.54841 + (876600.0 * 3600.0 + 8640184.812866) * tUT1
+        gmst += 0.093104 * tUT1 * tUT1
+        gmst -= 6.2e-6 * tUT1 * tUT1 * tUT1
+
+        // Add fraction of day
+        let secondsInDay = 86400.0
+        let fraction = (jd - floor(jd + 0.5) + 0.5) * secondsInDay
+        gmst += fraction * 1.00273790935
+
+        // Convert to radians and normalize to [0, 2π]
+        let gmstRadians = (gmst / 240.0) * .pi / 180.0  // Convert from seconds to radians
+        return gmstRadians.truncatingRemainder(dividingBy: 2.0 * .pi)
+    }
+
+    /// Convert a Date to Julian Date
+    /// - Parameter date: The date to convert
+    /// - Returns: Julian Date
+    private static func dateToJulianDate(date: Date) -> Double {
+        // Unix epoch (1970-01-01 00:00:00 UTC) = JD 2440587.5
+        let unixEpochJD = 2440587.5
+        let secondsPerDay = 86400.0
+
+        let timeIntervalSince1970 = date.timeIntervalSince1970
+        let jd = unixEpochJD + (timeIntervalSince1970 / secondsPerDay)
+
+        return jd
     }
 
     // MARK: - TEME <-> Geodetic Conversions
