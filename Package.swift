@@ -28,12 +28,10 @@ let package = Package(
         .target(
             name: "SwiftSGP4",
             path: "SwiftSGP4",
-            exclude: ["Info.plist"]),
         .testTarget(
             name: "SwiftSGP4Tests",
             dependencies: ["SwiftSGP4"],
             path: "SwiftSGP4Tests",
-            exclude: ["Info.plist"],
             resources: [.process("Resources")]),
     ]
 )
