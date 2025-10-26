@@ -27,10 +27,13 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SwiftSGP4",
-            path: "SwiftSGP4"),
+            path: "SwiftSGP4",
+            exclude: ["Info.plist"]),
         .testTarget(
             name: "SwiftSGP4Tests",
             dependencies: ["SwiftSGP4"],
-            path: "SwiftSGP4Tests"),
+            path: "SwiftSGP4Tests",
+            exclude: ["Info.plist"],
+            resources: [.process("Resources")]),
     ]
 )
