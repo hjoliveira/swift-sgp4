@@ -99,6 +99,80 @@ class SGP4PropagatorTests: XCTestCase {
         try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
     }
 
+    // MARK: - Satellite 16925 Tests (SL-6 R/B - Near Earth LEO)
+
+    /// Test satellite 16925 (86065D - SL-6 R/B)
+    /// Orbit characteristics: Near-earth LEO, 15.64 revs/day
+    /// Test range: 0 to 240 minutes at 120-minute intervals
+    func testSatellite16925_Propagation() throws {
+        // Official TLE from SGP4-VER.TLE
+        let tle = try TLE(
+            name: "16925",
+            lineOne: "1 16925U 86065D   06151.67415771  .00002121  00000-0  29868-3 0  6569",
+            lineTwo: "2 16925  51.6361 125.6432 0012753 239.9881 119.9629 15.64159219346978"
+        )
+
+        let propagator = try SGP4Propagator(tle: tle)
+
+        // Expected states from Vallado's verification output (tcppver.out)
+        let expectedStates: [ExpectedState] = [
+            // At t=0
+            ExpectedState(
+                minutesSinceEpoch: 0.0,
+                position: Vector3D(x: 5559.11686836, y: -11941.04090781, z: -19.41235206),
+                velocity: Vector3D(x: 3.392116762, y: -1.946985124, z: 4.250755852)
+            ),
+            // At t=120 minutes
+            ExpectedState(
+                minutesSinceEpoch: 120.0,
+                position: Vector3D(x: 12339.83273749, y: -2771.14447871, z: 18904.57603433),
+                velocity: Vector3D(x: -0.871247614, y: 2.600917693, z: 0.581560002)
+            ),
+            // At t=240 minutes
+            ExpectedState(
+                minutesSinceEpoch: 240.0,
+                position: Vector3D(x: -3385.00215658, y: 7538.13955729, z: 200.59008616),
+                velocity: Vector3D(x: -2.023512865, y: -4.261808344, z: -6.856385787)
+            )
+        ]
+
+        try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
+    }
+
+    // MARK: - Satellite 22312 Tests (SL-12 DEB - LEO with High Drag)
+
+    /// Test satellite 22312 (92086C - SL-12 DEB)
+    /// Orbit characteristics: LEO with high drag, 15.21 revs/day
+    /// Test range: 0 to 74.2 minutes (less than one orbit)
+    func testSatellite22312_Propagation() throws {
+        // Official TLE from SGP4-VER.TLE
+        let tle = try TLE(
+            name: "22312",
+            lineOne: "1 22312U 92086C   06176.02341244  .00021906  00000-0  30430-3 0  6116",
+            lineTwo: "2 22312  62.1486  97.0060 0257950 311.0977  45.3896 15.21987053  2891"
+        )
+
+        let propagator = try SGP4Propagator(tle: tle)
+
+        // Expected states from Vallado's verification output (tcppver.out)
+        let expectedStates: [ExpectedState] = [
+            // At t=0
+            ExpectedState(
+                minutesSinceEpoch: 0.0,
+                position: Vector3D(x: 1442.10132912, y: 6510.23625449, z: 8.83145885),
+                velocity: Vector3D(x: -3.475714837, y: 0.997262768, z: 6.835860345)
+            ),
+            // At t=54.2 minutes
+            ExpectedState(
+                minutesSinceEpoch: 54.2028672,
+                position: Vector3D(x: 306.10478453, y: -5816.45655525, z: -2979.55846068),
+                velocity: Vector3D(x: 3.950663855, y: 3.415332543, z: -5.879974329)
+            )
+        ]
+
+        try verifyPropagation(propagator: propagator, expectedStates: expectedStates)
+    }
+
     // MARK: - Satellite 28057 Tests (Deep Space - 24-hour orbit)
 
     /// Test satellite 28057 (04632A - MOLNIYA 2-14)
