@@ -27,7 +27,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SwiftSGP4",
-            path: "SwiftSGP4",
+            path: "SwiftSGP4"),
         .testTarget(
             name: "SwiftSGP4Tests",
             dependencies: ["SwiftSGP4"],
