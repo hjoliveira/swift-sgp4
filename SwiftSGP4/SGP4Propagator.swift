@@ -1,10 +1,10 @@
 import Foundation
 
-/// SGP4/SDP4 orbit propagator
+/// SGP4 orbit propagator (near-Earth satellites)
 /// Implements the Simplified General Perturbations 4 algorithm
 /// Reference: Vallado et al. "Revisiting Spacetrack Report #3" (AIAA 2006-6753)
-public class SGP4Propagator {
-    private let tle: TLE
+public class SGP4Propagator: Propagator {
+    public let tle: TLE
 
     // MARK: - WGS-72 Constants (NOT WGS-84!)
     // SGP4 uses WGS-72 Earth model for compatibility with historical data
@@ -65,8 +65,13 @@ public class SGP4Propagator {
     private var t4cof: Double = 0    // Time^4 coefficient
     private var t5cof: Double = 0    // Time^5 coefficient
 
-    private var isDeepSpace: Bool = false
+    private var _isDeepSpace: Bool = false
     private var isimp: Int = 0       // Simplified propagation flag
+
+    /// SGP4 is for near-Earth satellites only
+    public var isDeepSpace: Bool {
+        return false
+    }
 
     /// Initialize propagator with a TLE
     public init(tle: TLE) throws {
@@ -92,11 +97,11 @@ public class SGP4Propagator {
 
         // Check for deep space (orbital period >= 225 minutes, ~6.4 revs/day)
         let period = 2.0 * .pi / n0  // minutes
-        isDeepSpace = period >= 225.0
+        _isDeepSpace = period >= 225.0
 
-        if isDeepSpace {
-            // For now, we'll handle deep space as an error
-            // SDP4 implementation can be added later
+        if _isDeepSpace {
+            // This propagator only handles near-Earth orbits
+            // Use PropagatorFactory.create() to automatically select the correct propagator
             throw PropagationError.deepSpaceNotImplemented
         }
 
