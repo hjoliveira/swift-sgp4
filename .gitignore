@@ -35,3 +35,6 @@ DerivedData
 # Carthage/Checkouts
 
 Carthage/Build
+
+# Swift toolchain downloads
+swift-*.*.*/
