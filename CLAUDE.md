@@ -13,3 +13,5 @@
 - swift build: build the project
 
 - swift test: run the tests
+
+- swiftformat .: format all Swift code (see FORMATTING.md for setup)

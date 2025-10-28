@@ -1,0 +1,50 @@
+# SwiftFormat Configuration
+# https://github.com/nicklockwood/SwiftFormat
+
+# Version
+--swiftversion 6.0
+
+# Indentation
+--indent 4
+--indentcase false
+--ifdef no-indent
+--xcodeindentation disabled
+
+# Wrapping
+--maxwidth 120
+--wraparguments before-first
+--wrapcollections before-first
+--closingparen balanced
+
+# Spacing
+--trimwhitespace always
+--commas always
+--semicolons inline
+--operatorfunc spaced
+
+# Organization
+--organizetypes actor,class,enum,struct
+--structthreshold 0
+--classthreshold 0
+--enumthreshold 0
+--extensionlength 0
+
+# Comments
+--header strip
+
+# Rules to enable
+--enable isEmpty
+--enable redundantSelf
+--enable sortedImports
+--enable duplicateImports
+--enable blankLinesAtEndOfScope
+--enable blankLinesAtStartOfScope
+--enable consecutiveSpaces
+
+# Rules to disable (if any are too aggressive for your style)
+# --disable <rule-name>
+
+# File options
+--exclude .build
+--exclude .swiftpm
+--exclude Packages

@@ -386,6 +386,10 @@ swift build
 swift test
 ```
 
+### Code Formatting
+
+This project uses [SwiftFormat](https://github.com/nicklockwood/SwiftFormat) for automatic code formatting. See [FORMATTING.md](FORMATTING.md) for setup instructions and usage. A pre-commit hook is configured to automatically format code before commits.
+
 ### Project Structure
 
 ```
