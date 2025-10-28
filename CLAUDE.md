@@ -15,3 +15,5 @@
 - swift test: run the tests
 
 - swiftformat .: format all Swift code (see FORMATTING.md for setup)
+
+- swiftlint lint: lint all Swift code for style issues

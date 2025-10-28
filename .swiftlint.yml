@@ -1,0 +1,198 @@
+# SwiftLint Configuration
+# https://realm.github.io/SwiftLint/
+
+# Paths to include/exclude
+included:
+  - SwiftSGP4
+  - SwiftSGP4Tests
+
+excluded:
+  - .build
+  - .swiftpm
+  - Packages
+  - vendor
+
+# Analyzer rules (require full compilation)
+analyzer_rules:
+  - unused_declaration
+  - unused_import
+
+# Opt-in rules (not enabled by default)
+opt_in_rules:
+  - array_init
+  - attributes
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - enum_case_associated_values_count
+  - explicit_init
+  - extension_access_modifier
+  - fallthrough
+  - fatal_error_message
+  - file_header
+  - first_where
+  - flatmap_over_map_reduce
+  - identical_operands
+  - joined_default_parameter
+  - last_where
+  - legacy_multiple
+  - legacy_random
+  - literal_expression_end_indentation
+  - lower_acl_than_parent
+  - modifier_order
+  - nimble_operator
+  - nslocalizedstring_key
+  - number_separator
+  - operator_usage_whitespace
+  - overridden_super_call
+  - override_in_extension
+  - pattern_matching_keywords
+  - prefer_self_type_over_type_of_self
+  - private_action
+  - private_outlet
+  - prohibited_super_call
+  - quick_discouraged_call
+  - quick_discouraged_focused_test
+  - quick_discouraged_pending_test
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - single_test_class
+  - sorted_first_last
+  - static_operator
+  - strong_iboutlet
+  - toggle_bool
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - untyped_error_in_catch
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - yoda_condition
+
+# Disabled rules
+disabled_rules:
+  - todo
+  - trailing_comma
+
+# Rule configurations
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: false
+  ignores_interpolated_strings: true
+
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+
+function_body_length:
+  warning: 50
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+type_body_length:
+  warning: 300
+  error: 500
+
+type_name:
+  min_length: 2
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - T
+    - U
+    - V
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - i
+    - j
+    - k
+    - x
+    - y
+    - z
+    - id
+    - dx
+    - dy
+    - dz
+    - dt
+    - r
+    - v
+    - u
+    - a
+    - e
+    - n
+    - pi
+    - mu
+    - ax
+    - ay
+    - az
+    - xl
+    - xn
+    - ll
+    - rl
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+  ignores_case_statements: true
+
+nesting:
+  type_level:
+    warning: 2
+  statement_level:
+    warning: 5
+
+number_separator:
+  minimum_length: 5
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+large_tuple:
+  warning: 3
+  error: 4
+
+# Custom rules
+custom_rules:
+  # Ensure proper spacing around operators
+  operator_whitespace:
+    name: "Operator Whitespace"
+    regex: '(?:(?:[^.]\.)|(\.(?:[^.]|$))|(?:[^=!<>]=(?!=))|(?:=(?![=>]))|(?:!(?!=))|(?:<(?![<=]))|(?:>(?![>=]))){2,}'
+    message: "Operators should be surrounded by spaces"
+    severity: warning
+
+  # Discourage force unwrapping except in tests
+  force_unwrap:
+    name: "Force Unwrap"
+    regex: '(?<!as)\!(?![=\(])'
+    match_kinds:
+      - identifier
+    message: "Avoid force unwrapping; use optional binding or guard statements"
+    severity: warning
+    excluded: ".*Tests\\.swift"
+
+# Reporter type
+reporter: "xcode"
