@@ -9,18 +9,18 @@ import Foundation
 
 /// Geodetic coordinate (latitude, longitude, altitude)
 public struct GeodeticCoordinate {
-    /// Latitude in degrees [-90, 90]
-    public let latitude: Double
+  /// Latitude in degrees [-90, 90]
+  public let latitude: Double
 
-    /// Longitude in degrees [-180, 180]
-    public let longitude: Double
+  /// Longitude in degrees [-180, 180]
+  public let longitude: Double
 
-    /// Altitude in kilometers above WGS84 ellipsoid
-    public let altitude: Double
+  /// Altitude in kilometers above WGS84 ellipsoid
+  public let altitude: Double
 
-    public init(latitude: Double, longitude: Double, altitude: Double) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.altitude = altitude
-    }
+  public init(latitude: Double, longitude: Double, altitude: Double) {
+    self.latitude = latitude
+    self.longitude = longitude
+    self.altitude = altitude
+  }
 }
