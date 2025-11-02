@@ -26,3 +26,9 @@ swift-format is integrated as a Swift Package Manager plugin, so no manual insta
 - Check formatting (lint): `swift package lint-source-code`
 
 The plugin will automatically use the `.swift-format` configuration file in the repository root.
+
+## CI Format Check
+
+The CI workflow automatically checks code formatting on all pull requests and pushes to main/master.
+If your code is not properly formatted, the CI check will fail. Make sure to run the format command
+before pushing your changes.
