@@ -403,7 +403,8 @@ public enum PropagationError: Error {
     case .orbitDecayed:
       return "Satellite orbit has decayed"
     case .deepSpaceNotImplemented:
-      return "Deep space (SDP4) propagation not yet implemented"
+      return
+        "This satellite requires deep-space propagation (SDP4). Use PropagatorFactory.create() to automatically select the appropriate propagator."
     case .invalidEccentricity:
       return "Eccentricity out of valid range (0 <= e < 1)"
     case .keplerConvergenceFailed:
