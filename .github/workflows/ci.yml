@@ -5,6 +5,8 @@ on:
     branches: [ '*' ]
   push:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 9 * * 1'  # Runs every Monday at 9:00 AM UTC
   workflow_dispatch:
 
 jobs:
