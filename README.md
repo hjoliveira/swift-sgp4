@@ -412,7 +412,7 @@ swift-sgp4/
 
 ## License
 
-[To be added]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
