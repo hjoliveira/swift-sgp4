@@ -139,9 +139,11 @@ let sdp4 = try SDP4Propagator(tle: deepSpaceTLE)
 ```swift
 import SwiftSGP4
 
-// Convert TEME position to Geodetic coordinates
+// Convert TEME position to Geodetic coordinates.
+// The date is required: geodetic longitude is measured from the rotating
+// Greenwich meridian, so the position must be de-rotated by Earth's rotation.
 let temePosition = Vector3D(x: 6800.0, y: 1200.0, z: 800.0)
-let geodetic = CoordinateConverter.temeToGeodetic(position: temePosition)
+let geodetic = CoordinateConverter.temeToGeodetic(position: temePosition, date: Date())
 
 print("Latitude: \(geodetic.latitude)°")
 print("Longitude: \(geodetic.longitude)°")
@@ -317,9 +319,13 @@ public class CoordinateConverter {
     public static func temeToECEF(position: Vector3D, velocity: Vector3D, date: Date) -> (Vector3D, Vector3D)
     public static func ecefToTEME(position: Vector3D, velocity: Vector3D, date: Date) -> (Vector3D, Vector3D)
 
-    // TEME ↔ Geodetic
-    public static func temeToGeodetic(position: Vector3D) -> GeodeticCoordinate
+    // TEME ↔ Geodetic (date-dependent: accounts for Earth rotation)
+    public static func temeToGeodetic(position: Vector3D, date: Date) -> GeodeticCoordinate
     public static func geodeticToTEME(coordinate: GeodeticCoordinate, date: Date) -> Vector3D
+
+    // ECEF ↔ Geodetic (frame-fixed: pure WGS84 ellipsoid conversion)
+    public static func ecefToGeodetic(position: Vector3D) -> GeodeticCoordinate
+    public static func geodeticToECEF(coordinate: GeodeticCoordinate) -> Vector3D
 }
 ```
 
@@ -327,28 +333,34 @@ public class CoordinateConverter {
 
 ### SGP4 (Near-Earth)
 
-The SGP4 implementation produces results very close to the official Vallado reference:
+The SGP4 implementation matches the official Vallado reference closely:
 
-- **Position accuracy**: Within 0.03% at epoch, <3% at 720 minutes
-- **Velocity accuracy**: mm/s to cm/s range
+- **Position accuracy**: exact at epoch (sub-metre); worst observed error 278 m
+  at 720 minutes (satellite 00005, e=0.186), under 100 m for all other
+  reference cases
+- **Velocity accuracy**: sub-mm/s at epoch, under 0.2 mm/s at 720 minutes
 - **Validated against**: Official AIAA 2006-6753 test suite
 
 ### SDP4 (Deep-Space)
 
-The SDP4 implementation is an initial working version with reasonable accuracy:
+The SDP4 implementation is incomplete and its accuracy is **not** validated
+against reference state vectors:
 
-- **Position accuracy**: ~5-10% for deep-space satellites
-- **Validated against**: Vallado test cases for geostationary orbits
-- **Status**: Functional and suitable for most tracking applications
+- Several lunar-solar periodic coefficients are stubbed at zero
+- Highly eccentric deep-space orbits (e > ~0.65, such as Molniya) are
+  incorrectly rejected as decayed
+- Existing tests only check that the orbital radius is plausible, not that the
+  position is correct
 
-This accuracy is sufficient for satellite tracking, visualization, and mission planning. Future refinements can improve precision for specialized applications.
+Treat deep-space results as approximate. Near-Earth (SGP4) propagation is the
+validated path.
 
 ## Implementation Status
 
-✅ **SGP4**: Fully implemented and validated
-✅ **SDP4**: Implemented with lunar-solar perturbations and resonance terms
+✅ **SGP4**: Fully implemented and validated against AIAA 2006-6753
+⚠️ **SDP4**: Partial - runs, but not validated against reference state vectors
 ✅ **PropagatorFactory**: Automatic selection between SGP4/SDP4
-✅ **All test cases**: 40/40 passing
+✅ **All test cases**: 66/66 passing
 
 The SDP4 implementation includes:
 - Lunar-solar gravitational effects

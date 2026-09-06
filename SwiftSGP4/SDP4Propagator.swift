@@ -19,6 +19,11 @@ public class SDP4Propagator: Propagator {
   private let j3: Double = -0.00000253881  // J3 harmonic
   private let j4: Double = -0.00000165597  // J4 harmonic
   private let ke: Double = 0.0743669161  // sqrt(GM) in Earth radii^(3/2) / minute
+
+  // Derived harmonic constants used by the SGP4/SDP4 formulation.
+  // The published equations are written in terms of these, not J2/J4 directly.
+  private var ck2: Double { 0.5 * j2 }  // 0.5 * J2
+  private var ck4: Double { -0.375 * j4 }  // -0.375 * J4
   private let xke: Double = 0.0743669161  // Reciprocal of time unit
   private let tumin: Double = 13.44683950578  // Time units per minute
 
@@ -135,10 +140,9 @@ public class SDP4Propagator: Propagator {
 
     // Recover original mean motion and semi-major axis
     let a1 = pow(ke / n0, 2.0 / 3.0)
-    let temp = 1.5 * j2 * x3thm1 / (a1 * a1 * betao2)
-    let delta1 = temp / (a1 * a1)
+    let delta1 = 1.5 * ck2 * x3thm1 / (a1 * a1 * betao * betao2)
     let a0 = a1 * (1.0 - delta1 / 3.0 - delta1 * delta1 - 134.0 * delta1 * delta1 * delta1 / 81.0)
-    let delta0 = temp / (a0 * a0)
+    let delta0 = 1.5 * ck2 * x3thm1 / (a0 * a0 * betao * betao2)
     let n0pp = n0 / (1.0 + delta0)
     let a0pp = a0 / (1.0 - delta0)
     self.aodp = a0pp
@@ -151,9 +155,9 @@ public class SDP4Propagator: Propagator {
 
     // Compute rates (secular effects of gravitation)
     let pinvsq = 1.0 / (aodp * aodp * betao2 * betao2)
-    let temp1 = 3.0 * j2 * pinvsq * n0pp
-    let temp2 = temp1 * j2 * pinvsq
-    let temp3 = 1.25 * j4 * pinvsq * pinvsq * n0pp
+    let temp1 = 3.0 * ck2 * pinvsq * n0pp
+    let temp2 = 0.5 * temp1 * ck2 * pinvsq
+    let temp3 = 1.25 * ck4 * pinvsq * pinvsq * n0pp
 
     xmdot =
       n0pp + 0.5 * temp1 * betao * x3thm1 + 0.0625 * temp2 * betao
@@ -545,23 +549,13 @@ public class SDP4Propagator: Propagator {
 
   /// Convert Date to Julian Date
   private func julianDateFromEpoch(_ date: Date) -> Double {
-    let j2000 = Date(timeIntervalSince1970: 946728000.0)  // 2000-01-01 12:00:00 UTC
-    let daysSinceJ2000 = date.timeIntervalSince(j2000) / 86400.0
-    return 2451545.0 + daysSinceJ2000
+    return SiderealTime.julianDate(from: date)
   }
 
   /// Compute Greenwich Sidereal Time (GSTIME)
   /// - Parameter jd: Julian Date
   /// - Returns: GSTO in radians
   private func gstime(jd: Double) -> Double {
-    let tut1 = (jd - 2451545.0) / 36525.0
-    var temp =
-      -6.2e-6 * tut1 * tut1 * tut1 + 0.093104 * tut1 * tut1 + (876600.0 * 3600.0 + 8640184.812866)
-      * tut1 + 67310.54841
-    temp = fmod(temp * .pi / 43200.0, 2.0 * .pi)
-    if temp < 0.0 {
-      temp += 2.0 * .pi
-    }
-    return temp
+    return SiderealTime.greenwichMeanSiderealTime(julianDate: jd)
   }
 }

@@ -166,6 +166,24 @@ class TLEValidationTests: XCTestCase {
     XCTAssertEqual(tle.inclination, 120.0, accuracy: 0.01)
   }
 
+  /// A UTC calendar - TLE epochs are UTC and must not follow the machine time zone.
+  private var utcCalendar: Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    return calendar
+  }
+
+  private func utcDate(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int, _ s: Int) -> Date {
+    var c = DateComponents()
+    c.year = y
+    c.month = mo
+    c.day = d
+    c.hour = h
+    c.minute = mi
+    c.second = s
+    return utcCalendar.date(from: c)!
+  }
+
   func testTLE_VeryOldEpoch() throws {
     // Satellite from 1957 (Sputnik era)
     let tle = try TLE(
@@ -174,9 +192,12 @@ class TLEValidationTests: XCTestCase {
       lineTwo: "2 00001  45.0000 180.0000 0100000 000.0000 000.0000 15.00000000000001"
     )
 
-    let calendar = Calendar.current
-    let year = calendar.component(.year, from: tle.epoch)
-    XCTAssertEqual(year, 1957)
+    XCTAssertEqual(utcCalendar.component(.year, from: tle.epoch), 1957)
+    // Day 300 of 1957 is October 27; .12345678 day = 02:57:46 UTC.
+    XCTAssertEqual(
+      tle.epoch.timeIntervalSince1970,
+      utcDate(1957, 10, 27, 2, 57, 46).timeIntervalSince1970,
+      accuracy: 1.0)
   }
 
   func testTLE_RecentEpoch() throws {
@@ -187,9 +208,42 @@ class TLEValidationTests: XCTestCase {
       lineTwo: "2 99999  45.0000 180.0000 0100000 000.0000 000.0000 15.00000000000001"
     )
 
-    let calendar = Calendar.current
-    let year = calendar.component(.year, from: tle.epoch)
-    XCTAssertEqual(year, 2024)
+    XCTAssertEqual(utcCalendar.component(.year, from: tle.epoch), 2024)
+    // Day 100 of 2024 (leap year) is April 9; .12345678 day = 02:57:46 UTC.
+    XCTAssertEqual(
+      tle.epoch.timeIntervalSince1970,
+      utcDate(2024, 4, 9, 2, 57, 46).timeIntervalSince1970,
+      accuracy: 1.0)
+  }
+
+  /// The fractional part of the epoch field carries the time of day and must be
+  /// preserved - discarding it shifts the epoch by up to a full day.
+  func testTLE_EpochPreservesFractionalDay() throws {
+    let tle = try TLE(
+      name: "00005",
+      lineOne: "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753",
+      lineTwo: "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667"
+    )
+
+    // Day 179 of 2000 (leap year) is June 27; .78495062 day = 18:50:19 UTC.
+    XCTAssertEqual(
+      tle.epoch.timeIntervalSince1970,
+      utcDate(2000, 6, 27, 18, 50, 19).timeIntervalSince1970,
+      accuracy: 1.0)
+  }
+
+  /// Day 1.0 is the very start of the year.
+  func testTLE_EpochDayOneIsStartOfYear() throws {
+    let tle = try TLE(
+      name: "NEW YEAR",
+      lineOne: "1 99999U 24001A   24001.00000000  .00000100  00000-0  10000-3 0  9999",
+      lineTwo: "2 99999  45.0000 180.0000 0100000 000.0000 000.0000 15.00000000000001"
+    )
+
+    XCTAssertEqual(
+      tle.epoch.timeIntervalSince1970,
+      utcDate(2024, 1, 1, 0, 0, 0).timeIntervalSince1970,
+      accuracy: 1.0)
   }
 
   // MARK: - Scientific Notation Parsing Tests
@@ -251,29 +305,4 @@ class TLEValidationTests: XCTestCase {
     XCTAssertGreaterThan(tle.inclination, 54.0)
     XCTAssertLessThan(tle.inclination, 56.0)
   }
-
-  // MARK: - Checksum Tests (if implemented in TLE struct)
-
-  // Note: The current TLE implementation doesn't validate checksums
-  // These tests should be enabled when checksum validation is added
-
-  //    func testTLE_ValidChecksum() throws {
-  //        // TLE with correct checksum
-  //        let tle = try TLE(
-  //            name: "VALID",
-  //            lineOne: "1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927",
-  //            lineTwo: "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537"
-  //        )
-  //
-  //        XCTAssertNotNil(tle)
-  //    }
-  //
-  //    func testTLE_InvalidChecksum() {
-  //        // TLE with incorrect checksum (last digit wrong)
-  //        XCTAssertThrowsError(try TLE(
-  //            name: "INVALID",
-  //            lineOne: "1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2920", // Wrong checksum
-  //            lineTwo: "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537"
-  //        ))
-  //    }
 }

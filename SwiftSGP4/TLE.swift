@@ -71,12 +71,21 @@ public struct TLE {
     var line2: String?
     for i in 0..<lines.count {
       if lines[i].trimmingCharacters(in: .whitespacesAndNewlines) == name {
+        // The name must be followed by both element lines.
+        guard i + 2 < lines.count else {
+          throw TLEError.fileParsing
+        }
         line1 = lines[i + 1]
         line2 = lines[i + 2]
         break
       }
     }
-    try self.init(name: name, lineOne: line1!, lineTwo: line2!)
+
+    guard let lineOne = line1, let lineTwo = line2 else {
+      throw TLEError.fileParsing
+    }
+
+    try self.init(name: name, lineOne: lineOne, lineTwo: lineTwo)
   }
 
   public init(name: String, lineOne: String, lineTwo: String) throws {
@@ -232,8 +241,6 @@ public struct TLE {
       throw TLEError.invalidElement("Invalid day")
     }
 
-    let day = Int(doubleDay)
-
     if let meanMotionDt2 = Double(
       trimmedSubstring(
         str: lineOne, location: TLE1_COL_MEANMOTIONDT2, length: TLE1_LEN_MEANMOTIONDT2))
@@ -288,14 +295,25 @@ public struct TLE {
       year += 1900
     }
 
-    var comps = DateComponents()
-    comps.year = year
-    comps.day = day
-
-    if let epoch = Calendar.current.date(from: comps) {
-      self.epoch = epoch
-    } else {
+    // The epoch field is a day-of-year with a fractional part carrying the time
+    // of day (e.g. 179.78495062 is day 179 at 18:50:19 UTC). TLE epochs are UTC,
+    // so anchor to a UTC calendar rather than the machine's local time zone.
+    var utcCalendar = Calendar(identifier: .gregorian)
+    guard let utc = TimeZone(identifier: "UTC") else {
       throw TLEError.invalidElement("Invalid epoch")
     }
+    utcCalendar.timeZone = utc
+
+    var comps = DateComponents()
+    comps.year = year
+    comps.month = 1
+    comps.day = 1
+
+    guard let startOfYear = utcCalendar.date(from: comps) else {
+      throw TLEError.invalidElement("Invalid epoch")
+    }
+
+    // Day 1.0 is the start of the year, so subtract one day before scaling.
+    self.epoch = startOfYear.addingTimeInterval((doubleDay - 1.0) * 86400.0)
   }
 }

@@ -13,6 +13,12 @@ public class SGP4Propagator: Propagator {
   private let j3: Double = -0.00000253881  // J3 harmonic
   private let j4: Double = -0.00000165597  // J4 harmonic
   private let ke: Double = 0.0743669161  // sqrt(GM) in Earth radii^(3/2) / minute
+
+  // Derived harmonic constants used by the SGP4 formulation.
+  // The published equations are written in terms of these, not J2/J3/J4 directly.
+  private var ck2: Double { 0.5 * j2 }  // 0.5 * J2
+  private var ck4: Double { -0.375 * j4 }  // -0.375 * J4
+  private var j3oj2: Double { j3 / j2 }  // J3 / J2
   private let xke: Double = 0.0743669161  // Reciprocal of time unit
   private let tumin: Double = 13.44683950578  // Time units per minute
 
@@ -117,14 +123,13 @@ public class SGP4Propagator: Propagator {
 
     // Recover original mean motion (n0pp) and semi-major axis (a0pp)
     let a1 = pow(ke / n0, 2.0 / 3.0)
-    let temp = 1.5 * j2 * x3thm1 / (a1 * a1 * betao2)
-    let delta1 = temp / (a1 * a1)
+    let delta1 = 1.5 * ck2 * x3thm1 / (a1 * a1 * betao * betao2)
     self.delta1 = delta1
 
     let a0 = a1 * (1.0 - delta1 / 3.0 - delta1 * delta1 - 134.0 * delta1 * delta1 * delta1 / 81.0)
     self.a0 = a0
 
-    let delta0 = temp / (a0 * a0)
+    let delta0 = 1.5 * ck2 * x3thm1 / (a0 * a0 * betao * betao2)
     let n0pp = n0 / (1.0 + delta0)
     let a0pp = a0 / (1.0 - delta0)
     self.aodp = a0pp
@@ -137,23 +142,22 @@ public class SGP4Propagator: Propagator {
       throw PropagationError.orbitDecayed
     }
 
-    // For perigee less than 220 km, use simple drag model
-    let s = earthRadius + 78.0  // 78 km atmospheric boundary
-    let qoms24 = pow((120.0 - 78.0) / earthRadius, 4.0)
+    // Atmospheric drag model. The default boundary is 78 km above the surface;
+    // for a low perigee it is lowered, and `qoms24` must be recomputed to match
+    // (see Vallado et al., "Revisiting Spacetrack Report #3").
     let perige = (aodp * (1.0 - e0) - 1.0) * earthRadius
 
-    let pinvsq: Double
+    // A perigee below 98 km is already rejected by the decay check above, so the
+    // reference implementation's clamp of `sfour` to 20 km cannot be reached here.
+    var sfour = 78.0
+    var qoms24 = pow((120.0 - 78.0) / earthRadius, 4.0)
     if perige < 156.0 {
-      if perige < 98.0 {
-        throw PropagationError.orbitDecayed
-      }
-      let s4temp = perige - 78.0
-      s4 = s4temp / earthRadius + 1.0
-      pinvsq = 1.0 / (aodp * aodp * betao2 * betao2)
-    } else {
-      s4 = s / earthRadius
-      pinvsq = 1.0 / (aodp * aodp * betao2 * betao2)
+      sfour = perige - 78.0
+      qoms24 = pow((120.0 - sfour) / earthRadius, 4.0)
     }
+    s4 = sfour / earthRadius + 1.0
+
+    let pinvsq = 1.0 / (aodp * aodp * betao2 * betao2)
 
     let tsi = 1.0 / (aodp - s4)
     xi = tsi
@@ -167,11 +171,11 @@ public class SGP4Propagator: Propagator {
 
     let c2 =
       coef1 * n0pp
-      * (aodp * (1.0 + 1.5 * etasq + eeta * (4.0 + etasq)) + 0.75 * j2 * tsi / psisq * x3thm1
+      * (aodp * (1.0 + 1.5 * etasq + eeta * (4.0 + etasq)) + 0.375 * j2 * tsi / psisq * x3thm1
         * (8.0 + 3.0 * etasq * (8.0 + etasq)))
     self.c2 = c2
     self.c1 = bstar * c2
-    self.c3 = e0 > 1e-4 ? coef * tsi * j2 * n0pp * sinio / e0 : 0.0
+    self.c3 = e0 > 1e-4 ? -2.0 * coef * tsi * j3oj2 * n0pp * sinio / e0 : 0.0
     self.c4 =
       2.0 * n0pp * coef1 * aodp * betao2
       * (eta * (2.0 + 0.5 * etasq) + e0 * (0.5 + 2.0 * etasq) - j2 * tsi / (aodp * psisq)
@@ -180,9 +184,9 @@ public class SGP4Propagator: Propagator {
     self.c5 = 2.0 * coef1 * aodp * betao2 * (1.0 + 2.75 * (etasq + eeta) + eeta * etasq)
 
     // Compute rates (secular effects of atmospheric drag and gravitation)
-    let temp1 = 3.0 * j2 * pinvsq * n0pp
-    let temp2 = temp1 * j2 * pinvsq
-    let temp3 = 1.25 * j4 * pinvsq * pinvsq * n0pp
+    let temp1 = 3.0 * ck2 * pinvsq * n0pp
+    let temp2 = 0.5 * temp1 * ck2 * pinvsq
+    let temp3 = 1.25 * ck4 * pinvsq * pinvsq * n0pp
 
     xmdot =
       n0pp + 0.5 * temp1 * betao * x3thm1 + 0.0625 * temp2 * betao
@@ -199,8 +203,8 @@ public class SGP4Propagator: Propagator {
 
     xnodcf = 3.5 * betao2 * xhdot1 * c1
     t2cof = 1.5 * c1
-    xlcof = 0.125 * j3 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)
-    aycof = 0.25 * j3 * sinio
+    xlcof = -0.25 * j3oj2 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)
+    aycof = -0.5 * j3oj2 * sinio
 
     delmo = pow(1.0 + eta * cos(m0), 3.0)
     sinmo = sin(m0)
@@ -248,23 +252,22 @@ public class SGP4Propagator: Propagator {
     var tempe = bstar * c4 * tsince
     var templ = t2cof * tsq
 
-    // Update for drag
-    let delomg = omgcof * tsince
-    let delm = xmcof * (pow(1.0 + eta * cos(xmdf), 3.0) - delmo)
-    let temp = delomg + delm
-    xmp = xmdf + temp
-    omega = omgadf - temp
-    let tcube = tsq * tsince
-    let tfour = tsince * tcube
-
-    // Apply drag and perturbation corrections
+    // Apply drag and perturbation corrections.
+    // For the simplified model (low perigee) none of these refinements apply:
+    // the reference keeps the whole block inside the non-simplified branch.
     if isimp != 1 {
+      let delomg = omgcof * tsince
+      let delm = xmcof * (pow(1.0 + eta * cos(xmdf), 3.0) - delmo)
+      let temp = delomg + delm
+      xmp = xmdf + temp
+      omega = omgadf - temp
+
+      let tcube = tsq * tsince
+      let tfour = tsince * tcube
+
       tempa = tempa - d2 * tsq - d3 * tcube - d4 * tfour
       tempe = tempe + bstar * c5 * (sin(xmp) - sinmo)
       templ = templ + t3cof * tcube + tfour * (t4cof + tsince * t5cof)
-    } else {
-      tempe = tempe + bstar * c5 * (sin(xmp) - sinmo)
-      // templ already has t2cof * tsq, no additional terms for simplified
     }
 
     let a = aodp * tempa * tempa
@@ -304,19 +307,22 @@ public class SGP4Propagator: Propagator {
     let temp3 = a / r
 
     // Update for short periodics
-    let sinu = temp3 * (sinepw - ayn - axn * esine / (1.0 + sqrt(1.0 - el2)))
-    let cosu = temp3 * (cosepw - axn + ayn * esine / (1.0 + sqrt(1.0 - el2)))
+    // betal uses the current eccentricity (axn, ayn), not the epoch value e0.
+    let betal = sqrt(1.0 - el2)
+    let esineOverBeta = esine / (1.0 + betal)
+    let sinu = temp3 * (sinepw - ayn - axn * esineOverBeta)
+    let cosu = temp3 * (cosepw - axn + ayn * esineOverBeta)
     let u = atan2(sinu, cosu)
 
     let sin2u = (cosu + cosu) * sinu
     let cos2u = 1.0 - 2.0 * sinu * sinu
 
     let temp4 = 1.0 / pl
-    let temp5 = j2 * temp4
+    let temp5 = ck2 * temp4
     let temp6 = temp5 * temp4
 
     // Update for short period periodics
-    let rk = r * (1.0 - 1.5 * temp6 * betao * x3thm1) + 0.5 * temp5 * x1mth2 * cos2u
+    let rk = r * (1.0 - 1.5 * temp6 * betal * x3thm1) + 0.5 * temp5 * x1mth2 * cos2u
     let uk = u - 0.25 * temp6 * x7thm1 * sin2u
     let xnodek = xnode + 1.5 * temp6 * cosio * sin2u
     let xinck = i0 + 1.5 * temp6 * cosio * sinio * cos2u
@@ -369,24 +375,25 @@ public class SGP4Propagator: Propagator {
     let maxIterations = 10
     let tolerance = 1e-12
 
-    // Newton-Raphson iteration
+    // Newton-Raphson iteration, converging on the step size like the reference.
     for _ in 0..<maxIterations {
       let sinepw = sin(epw)
       let cosepw = cos(epw)
       let ecosE = axn * cosepw + ayn * sinepw
       let esinE = axn * sinepw - ayn * cosepw
-      let f = capu - epw + esinE
 
-      if abs(f) < tolerance {
-        return (sinepw, cosepw)
+      var delta = (capu - epw + esinE) / (1.0 - ecosE)
+      // Clamp the step so highly eccentric orbits cannot overshoot.
+      if abs(delta) >= 0.95 {
+        delta = delta > 0.0 ? 0.95 : -0.95
       }
-
-      let df = 1.0 - ecosE
-      let delta = f / df
       epw += delta
+
+      if abs(delta) < tolerance {
+        break
+      }
     }
 
-    // If we didn't converge, use the last computed values
     return (sin(epw), cos(epw))
   }
 }
