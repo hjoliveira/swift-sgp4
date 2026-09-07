@@ -8,7 +8,7 @@
 import Foundation
 
 /// Geodetic coordinate (latitude, longitude, altitude)
-public struct GeodeticCoordinate {
+public struct GeodeticCoordinate: Sendable {
   /// Latitude in degrees [-90, 90]
   public let latitude: Double
 

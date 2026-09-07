@@ -8,7 +8,7 @@
 import Foundation
 
 /// Represents a satellite's state at a specific time
-public struct SatelliteState {
+public struct SatelliteState: Sendable {
   /// Position vector in TEME frame (km)
   public let position: Vector3D
 
