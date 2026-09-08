@@ -23,18 +23,15 @@ public enum PropagatorFactory {
   /// - Returns: A propagator instance (SGP4Propagator for near-Earth, SDP4Propagator for deep-space)
   /// - Throws: PropagationError if initialization fails
   public static func create(tle: TLE) throws -> Propagator {
-    // Convert mean motion from revolutions/day to radians/minute
-    let n0 = tle.meanMotion * (2.0 * .pi / 1440.0)  // rad/min
+    // The model classifies the orbit during initialization, using the
+    // recovered (un-Kozai'd) mean motion exactly as the reference does.
+    // A period of 225 minutes or more requires deep-space handling.
+    let model = try SGP4Model(tle: tle)
 
-    // Calculate orbital period in minutes
-    let period = (2.0 * .pi) / n0
-
-    // Select propagator based on orbital period
-    // Period >= 225 minutes indicates deep-space orbit requiring SDP4
-    if period >= 225.0 {
-      return try SDP4Propagator(tle: tle)
+    if model.isDeepSpace {
+      return SDP4Propagator(model: model)
     } else {
-      return try SGP4Propagator(tle: tle)
+      return SGP4Propagator(model: model)
     }
   }
 }

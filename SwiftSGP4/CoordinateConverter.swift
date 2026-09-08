@@ -124,53 +124,33 @@ public class CoordinateConverter {
 
   /// Calculate Greenwich Mean Sidereal Time (GMST) from a Date
   /// - Parameter date: The date/time for which to calculate GMST
-  /// - Returns: GMST in radians
+  /// - Returns: GMST in radians, normalized to [0, 2*pi)
   private static func calculateGMST(date: Date) -> Double {
-    // Convert Date to Julian Date
-    let jd = dateToJulianDate(date: date)
-
-    // Calculate Julian centuries from J2000.0 (JD 2451545.0)
-    let tUT1 = (jd - 2451545.0) / 36525.0
-
-    // GMST at 0h UT (IAU 1982 formula)
-    // Result in seconds
-    var gmst = 67310.54841 + (876600.0 * 3600.0 + 8640184.812866) * tUT1
-    gmst += 0.093104 * tUT1 * tUT1
-    gmst -= 6.2e-6 * tUT1 * tUT1 * tUT1
-
-    // Add fraction of day
-    let secondsInDay = 86400.0
-    let fraction = (jd - floor(jd + 0.5) + 0.5) * secondsInDay
-    gmst += fraction * 1.00273790935
-
-    // Convert to radians and normalize to [0, 2π]
-    let gmstRadians = (gmst / 240.0) * .pi / 180.0  // Convert from seconds to radians
-    return gmstRadians.truncatingRemainder(dividingBy: 2.0 * .pi)
-  }
-
-  /// Convert a Date to Julian Date
-  /// - Parameter date: The date to convert
-  /// - Returns: Julian Date
-  private static func dateToJulianDate(date: Date) -> Double {
-    // Unix epoch (1970-01-01 00:00:00 UTC) = JD 2440587.5
-    let unixEpochJD = 2440587.5
-    let secondsPerDay = 86400.0
-
-    let timeIntervalSince1970 = date.timeIntervalSince1970
-    let jd = unixEpochJD + (timeIntervalSince1970 / secondsPerDay)
-
-    return jd
+    return SiderealTime.greenwichMeanSiderealTime(date: date)
   }
 
   // MARK: - TEME <-> Geodetic Conversions
 
   /// Convert TEME position to Geodetic coordinates (lat/lon/alt)
-  /// - Parameter position: Position vector in TEME frame (km)
+  ///
+  /// The TEME frame is inertial while geodetic longitude is measured from the
+  /// rotating Greenwich meridian, so the position must first be rotated into
+  /// ECEF using the GMST for `date`.
+  ///
+  /// - Parameters:
+  ///   - position: Position vector in TEME frame (km)
+  ///   - date: Date of the position, used to compute Earth's rotation angle
   /// - Returns: Geodetic coordinate (latitude, longitude, altitude)
-  public static func temeToGeodetic(position: Vector3D) -> GeodeticCoordinate {
-    // TEME and ECEF share the same geodetic conversion (difference is time-based rotation)
-    // We can treat TEME positions as ECEF for geodetic purposes
+  public static func temeToGeodetic(position: Vector3D, date: Date) -> GeodeticCoordinate {
+    let (ecefPosition, _) = temeToECEF(
+      position: position, velocity: Vector3D(x: 0, y: 0, z: 0), date: date)
+    return ecefToGeodetic(position: ecefPosition)
+  }
 
+  /// Convert an ECEF position to Geodetic coordinates (lat/lon/alt)
+  /// - Parameter position: Position vector in ECEF frame (km)
+  /// - Returns: Geodetic coordinate (latitude, longitude, altitude)
+  public static func ecefToGeodetic(position: Vector3D) -> GeodeticCoordinate {
     let x = position.x
     let y = position.y
     let z = position.z
@@ -223,11 +203,25 @@ public class CoordinateConverter {
   }
 
   /// Convert Geodetic coordinates to TEME position
+  ///
+  /// Geodetic longitude is fixed to the rotating Earth, so the ECEF position is
+  /// rotated into the inertial TEME frame using the GMST for `date`.
+  ///
   /// - Parameters:
   ///   - coordinate: Geodetic coordinate (latitude, longitude, altitude)
   ///   - date: Date for the conversion
   /// - Returns: Position vector in TEME frame (km)
   public static func geodeticToTEME(coordinate: GeodeticCoordinate, date: Date) -> Vector3D {
+    let ecef = geodeticToECEF(coordinate: coordinate)
+    let (teme, _) = ecefToTEME(
+      position: ecef, velocity: Vector3D(x: 0, y: 0, z: 0), date: date)
+    return teme
+  }
+
+  /// Convert Geodetic coordinates to an ECEF position
+  /// - Parameter coordinate: Geodetic coordinate (latitude, longitude, altitude)
+  /// - Returns: Position vector in ECEF frame (km)
+  public static func geodeticToECEF(coordinate: GeodeticCoordinate) -> Vector3D {
     // Convert lat/lon from degrees to radians
     let latRad = coordinate.latitude * .pi / 180.0
     let lonRad = coordinate.longitude * .pi / 180.0
@@ -240,7 +234,7 @@ public class CoordinateConverter {
     // Radius of curvature in the prime vertical (N)
     let N = earthRadiusEquatorial / sqrt(1.0 - earthEccentricitySquared * sinLat * sinLat)
 
-    // Calculate ECEF/TEME coordinates
+    // Calculate ECEF coordinates
     let x = (N + coordinate.altitude) * cosLat * cosLon
     let y = (N + coordinate.altitude) * cosLat * sinLon
     let z = (N * (1.0 - earthEccentricitySquared) + coordinate.altitude) * sinLat

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Three-dimensional vector for position and velocity
-public struct Vector3D {
+public struct Vector3D: Sendable {
   public let x: Double
   public let y: Double
   public let z: Double
